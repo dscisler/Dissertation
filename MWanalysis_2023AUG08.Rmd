@@ -1,0 +1,298 @@
+---
+title: "MWanalysis_2023AUG08"
+author: "Dean Cisler"
+date: '`r Sys.Date()`'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+***Place the cursor inside the R code chunk and press Ctrl+Shift+Enter to run the entire code***
+
+```{r libraries}
+library(readr)
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(rstatix) #need to update to the latest version of r
+library(psycho)
+library(ggplot2)
+library(hrbrthemes)
+library(PerformanceAnalytics)
+```
+
+
+
+```{r processing exp1}
+#===================================================================================================================================================
+#Beginning of processing for Experiment 1
+#===================================================================================================================================================
+
+##Creates list of file names
+file_names_listed_EXP1EnjoyRaw <- list.files(path = "C:/Users/Cisler/Desktop/Data/For Analysis/Exp1Enjoy/Raw", full.names = TRUE,
+                                             pattern = "*.iqdat")
+
+file_names_listed_EXP1notEnjoyRaw <- list.files(path = "C:/Users/Cisler/Desktop/Data/For Analysis/Exp1NotEnjoy/Raw", full.names = TRUE,
+                                                pattern = "*.iqdat")
+
+
+##Create new dataframe
+Analysis <- data.frame(matrix(ncol = 10, nrow = 0))
+Analysis2 <- data.frame(matrix(ncol = 10, nrow = 0))
+MWProbe1 <- data.frame(matrix(ncol = 5, nrow = 0))
+MWProbe2 <- data.frame(matrix(ncol = 5, nrow = 0))
+
+colnames(Analysis) <- c('subject', 'condition', 'acc_avg_go', 'rt_avg_go', 'acc_avg_nogo', 'hit_count', 'miss_count', 'fa_count', 'cr_count', 'playlistSel')
+colnames(Analysis2) <- c('subject', 'condition', 'acc_avg_go', 'rt_avg_go', 'acc_avg_nogo', 'hit_count', 'miss_count', 'fa_count', 'cr_count', 'playlistSel')
+colnames(MWProbe1) <- c('subject', 'trialnum', 'trialcode', 'response', 'RespLog')
+colnames(MWProbe2) <- c('subject', 'trialnum', 'trialcode', 'response', 'RespLog')
+
+####AutoProcessing Enjoy####
+for (i in 1:length(file_names_listed_EXP1EnjoyRaw)) {
+  
+  ####Loading and processing data####
+  #part <- read_xlsx(file_names_listed_EXP1Enjoy[i])
+  part <- read.table(file_names_listed_EXP1EnjoyRaw[i],
+                     sep='\t', header=TRUE)
+  
+  ##Remove Practice Trials##
+  New_part <- part[!grepl("practice", part$trialcode),]
+  New_part$hit <- ifelse(New_part$trialtype == "Go" & New_part$correct == 1,1,0)
+  New_part$miss <- ifelse(New_part$trialtype == "Go" & New_part$correct == 0,1,0)
+  New_part$cr <- ifelse(New_part$trialtype == "NoGo" & New_part$correct == 1,1,0)
+  New_part$fa <- ifelse(New_part$trialtype == "NoGo" & New_part$correct == 0,1,0)
+  
+  probe_resp  <- part
+  #  mutate(SuppType = case_when(grepl('probe', trialcode) ~ NA,
+  #                              !grepl('probe', trialcode, ignore.case = TRUE) ~ trialcode)) %>%
+  #  fill(SuppType)
+  
+  probe_resp$responsetype <- na_if(probe_resp$responsetype, "") 
+  probe_resp  <- probe_resp %>%
+    mutate(RespLog = case_when(!grepl('Go', responsetype) ~ NA,
+                               grepl('Go', responsetype, ignore.case = TRUE) ~ responsetype)) %>%
+    fill(RespLog)
+  
+  probe_resp <- probe_resp[!grepl("go", part$trialcode),]
+  probe_resp <- probe_resp[!grepl("Music", probe_resp$trialcode),]
+  playlist <- part[grepl("PlaylistPick", part$trialcode),]
+  playlist$playlistSel <- playlist$response
+  playlist <- playlist %>% select(playlistSel)
+  probe_resp <- probe_resp[!grepl("PlaylistPick", probe_resp$trialcode),]
+  probe_resp <- probe_resp[!grepl("soundcheckdir", probe_resp$blockcode),]
+  probe_resp <- probe_resp %>% select(c(subject, trialnum, trialcode, response, RespLog))
+  #assign(paste0("probe_resp", i), probe_resp)
+  #Calculate means for Go and NoGo trials then store in separate dataframes
+  test <- New_part %>%
+    group_by(trialtype) %>%
+    filter(grepl("Go", trialtype)) %>%
+    summarise(Means = mean(correct))
+  
+  test1 <- test[test$trialtype == 'Go',]
+  test2 <- test[test$trialtype == 'NoGo',]
+  Analysis[nrow(Analysis) + 1,] <- c(unique(New_part$subject), paste('enjoy'), test1$Means, mean(New_part$RT, na.rm = TRUE), test2$Means, sum(New_part$hit), sum(New_part$miss), sum(New_part$fa), sum(New_part$cr), playlist$playlistSel)
+  MWProbe1 <- rbind(MWProbe1, probe_resp)
+  
+}
+MWProbe1$condition <- 'Enjoy'
+
+Analysis$acc_avg_go <- as.numeric(Analysis$acc_avg_go)
+Analysis$rt_avg_go <- as.numeric(Analysis$rt_avg_go)
+Analysis$acc_avg_nogo <- as.numeric(Analysis$acc_avg_nogo)
+Analysis$hit_count <- as.numeric(Analysis$hit_count)
+Analysis$miss_count <- as.numeric(Analysis$miss_count)
+Analysis$fa_count <- as.numeric(Analysis$fa_count)
+Analysis$cr_count <- as.numeric(Analysis$cr_count)
+
+
+#####Cleaning and Processing Enjoy Survey Responses#####
+##Create blank dataframe
+New_part_survey <- data.frame(matrix(ncol = 11, nrow = 0))
+colnames(New_part_survey) <- c('subject', 'mentaldemand_response', 'physicaldemand_response', 'temporaldemand_response', 'performance_response', 'effort_response', 'frustration_response', 'difficulty_response',  'GTQ_response', 'interest_response', 'paid_response')
+
+##Create list of file names in Enjoy Survey Directory
+file_names_listed_EXP1EnjoySurvey <- list.files(path = "C:/Users/Cisler/Desktop/Data/For Analysis/Exp1Enjoy/Survey", full.names = TRUE,
+                                                pattern = "*.iqdat")
+
+
+##Auto Process Enjoy Survey Data
+for (j in 1:length(file_names_listed_EXP1EnjoySurvey)) {
+  part_survey <- read.table(file_names_listed_EXP1EnjoySurvey[j],
+                            sep='\t', header=TRUE)
+  
+  #Removes unwanted columns from survey data
+  part_survey <- subset(part_survey, select = c(subject, mentaldemand_response, physicaldemand_response, temporaldemand_response,
+                                                performance_response, effort_response, frustration_response, difficulty_response,
+                                                GTQ_response, interest_response, paid_response))
+  
+  #Appends new row to created dataframe with each processed Survey response
+  New_part_survey[nrow(New_part_survey) + 1,] <- c(part_survey$subject, part_survey$mentaldemand_response, part_survey$physicaldemand_response, part_survey$temporaldemand_response,
+                                                   part_survey$performance_response, part_survey$effort_response, part_survey$frustration_response, part_survey$difficulty_response,
+                                                   part_survey$GTQ_response, part_survey$interest_response, part_survey$paid_response )
+  
+}
+
+##Append Survey Data to Task Data
+Analysis <- left_join(Analysis, New_part_survey, by = 'subject')
+
+
+##Hit, Misses, FA, and CR are stored as character and need to convert to numeric for d'
+Analysis$hit_count <- as.numeric(Analysis$hit_count)
+Analysis$fa_count <- as.numeric(Analysis$fa_count)
+Analysis$miss_count <- as.numeric(Analysis$miss_count)
+Analysis$cr_count <- as.numeric(Analysis$cr_count)
+
+##Calculate d'
+indices <- dprime(Analysis$hit_count, Analysis$fa_count, Analysis$miss_count, Analysis$cr_count)
+
+##Append d' to processed raw data
+Analysis <- cbind(Analysis, indices)
+
+####AutoProcessing Not Enjoy####
+for (i in 1:length(file_names_listed_EXP1notEnjoyRaw)) {
+  
+  ####Loading and processing data####
+  #part <- read_xlsx(file_names_listed_EXP1Enjoy[i])
+  part <- read.table(file_names_listed_EXP1notEnjoyRaw[i],
+                     sep='\t', header=TRUE)
+  
+  ##Remove Practice Trials##
+  New_part <- part[!grepl("practice", part$trialcode),]
+  New_part$hit <- ifelse(New_part$trialtype == "Go" & New_part$correct == 1,1,0)
+  New_part$miss <- ifelse(New_part$trialtype == "Go" & New_part$correct == 0,1,0)
+  New_part$cr <- ifelse(New_part$trialtype == "NoGo" & New_part$correct == 1,1,0)
+  New_part$fa <- ifelse(New_part$trialtype == "NoGo" & New_part$correct == 0,1,0)
+  
+  probe_resp <- part
+  probe_resp$responsetype <- na_if(probe_resp$responsetype, "") 
+  probe_resp  <- probe_resp %>%
+    mutate(RespLog = case_when(!grepl('Go', responsetype) ~ NA,
+                               grepl('Go', responsetype, ignore.case = TRUE) ~ responsetype)) %>%
+    fill(RespLog)
+  
+  probe_resp <- probe_resp[!grepl("go", part$trialcode),]
+  probe_resp <- probe_resp[!grepl("Music", probe_resp$trialcode),]
+  playlist <- part[grepl("PlaylistPick", part$trialcode),]
+  playlist$playlistSel <- playlist$response
+  playlist <- playlist %>% select(playlistSel)
+  probe_resp <- probe_resp[!grepl("PlaylistPick", probe_resp$trialcode),]
+  probe_resp <- probe_resp[!grepl("soundcheckdir", probe_resp$blockcode),]
+  probe_resp <- probe_resp %>% select(c(subject, trialnum, trialcode, response, RespLog))
+  #Calculate means for Go and NoGo trials then store in separate dataframes
+  test <- New_part %>%
+    group_by(trialtype) %>%
+    filter(grepl("Go", trialtype)) %>%
+    summarise(Means = mean(correct))
+  
+  test1 <- test[test$trialtype == 'Go',]
+  test2 <- test[test$trialtype == 'NoGo',]
+  Analysis2[nrow(Analysis2) + 1,] <- c(unique(New_part$subject), paste('not enjoy'), test1$Means, mean(New_part$RT, na.rm = TRUE), test2$Means, sum(New_part$hit), sum(New_part$miss), sum(New_part$fa), sum(New_part$cr), playlist$playlistSel)
+  MWProbe2 <- rbind(MWProbe2, probe_resp)
+  
+}
+MWProbe2$condition <- 'Not Enjoy'
+
+#####Cleaning and Processing Enjoy Survey Responses#####
+##Create blank dataframe
+New_part_survey_notEnjoy <- data.frame(matrix(ncol = 11, nrow = 0))
+colnames(New_part_survey_notEnjoy) <- c('subject', 'mentaldemand_response', 'physicaldemand_response', 'temporaldemand_response', 'performance_response', 'effort_response', 'frustration_response', 'difficulty_response',  'GTQ_response', 'interest_response', 'paid_response')
+
+##Create list of file names in Enjoy Survey Directory
+file_names_listed_EXP1NotEnjoySurvey <- list.files(path = "C:/Users/Cisler/Desktop/Data/For Analysis/Exp1NotEnjoy/Survey", full.names = TRUE,
+                                                   pattern = "*.iqdat")
+
+
+##Auto Process Enjoy Survey Data
+for (j in 1:length(file_names_listed_EXP1NotEnjoySurvey)) {
+  part_survey <- read.table(file_names_listed_EXP1NotEnjoySurvey[j],
+                            sep='\t', header=TRUE)
+  
+  #Removes unwanted columns from survey data
+  part_survey <- subset(part_survey, select = c(subject, mentaldemand_response, physicaldemand_response, temporaldemand_response,
+                                                performance_response, effort_response, frustration_response, difficulty_response,
+                                                GTQ_response, interest_response, paid_response))
+  
+  #Appends new row to created dataframe with each processed Survey response
+  New_part_survey_notEnjoy[nrow(New_part_survey_notEnjoy) + 1,] <- c(part_survey$subject, part_survey$mentaldemand_response, part_survey$physicaldemand_response, part_survey$temporaldemand_response,
+                                                                     part_survey$performance_response, part_survey$effort_response, part_survey$frustration_response, part_survey$difficulty_response,
+                                                                     part_survey$GTQ_response, part_survey$interest_response, part_survey$paid_response )
+  
+}
+
+##Append Survey Data to Task Data
+Analysis2 <- left_join(Analysis2, New_part_survey_notEnjoy, by = 'subject')
+
+##Hit, Misses, FA, and CR are stored as character and need to convert to numeric for d'
+Analysis2$hit_count <- as.numeric(Analysis2$hit_count)
+Analysis2$fa_count <- as.numeric(Analysis2$fa_count)
+Analysis2$miss_count <- as.numeric(Analysis2$miss_count)
+Analysis2$cr_count <- as.numeric(Analysis2$cr_count)
+
+##Calculate d'
+indices2 <- dprime(Analysis2$hit_count, Analysis2$fa_count, Analysis2$miss_count, Analysis2$cr_count)
+
+##Append d' to processed raw data
+Analysis2 <- cbind(Analysis2, indices2)
+
+
+###Create Full Dataset###
+FullAnalysis <- rbind(Analysis, Analysis2)
+
+FullAnalysis$acc_avg_go <- as.numeric(FullAnalysis$acc_avg_go)
+FullAnalysis$rt_avg_go <- as.numeric(FullAnalysis$rt_avg_go)
+FullAnalysis$acc_avg_nogo <- as.numeric(FullAnalysis$acc_avg_nogo)
+FullAnalysis$hit_count <- as.numeric(FullAnalysis$hit_count)
+FullAnalysis$miss_count <- as.numeric(FullAnalysis$miss_count)
+FullAnalysis$fa_count <- as.numeric(FullAnalysis$fa_count)
+FullAnalysis$cr_count <- as.numeric(FullAnalysis$cr_count)
+FullAnalysis$mentaldemand_response <- as.numeric(FullAnalysis$mentaldemand_response)
+FullAnalysis$physicaldemand_response <- as.numeric(FullAnalysis$physicaldemand_response)
+FullAnalysis$temporaldemand_response <- as.numeric(FullAnalysis$temporaldemand_response)
+FullAnalysis$performance_response <- as.numeric(FullAnalysis$performance_response)
+FullAnalysis$effort_response <- as.numeric(FullAnalysis$effort_response)
+FullAnalysis$frustration_response <- as.numeric(FullAnalysis$frustration_response)
+FullAnalysis$GTQ_response <- as.numeric(FullAnalysis$GTQ_response)
+FullAnalysis$paid_response <- as.numeric(FullAnalysis$paid_response)
+FullAnalysis$dprime <- as.numeric(FullAnalysis$dprime)
+
+FullAnalysis$difficulty_response_num=ifelse(FullAnalysis$difficulty_response == 'Very Easy', 1, 
+                                            ifelse(FullAnalysis$difficulty_response == 'Easy', 2, 
+                                                   ifelse(FullAnalysis$difficulty_response == 'Neither Easy/Difficult', 3, 
+                                                          ifelse(FullAnalysis$difficulty_response == 'Difficult', 4, 
+                                                                 ifelse(FullAnalysis$difficulty_response == 'Very Difficult', 5, 99)))))
+
+
+FullAnalysis$interest_response_num = ifelse(FullAnalysis$interest_response == 'Not at all interesting', 1, 
+                                            ifelse(FullAnalysis$interest_response == 'A little interesting', 2, 
+                                                   ifelse(FullAnalysis$interest_response == 'Somewhat interesting', 3, 
+                                                          ifelse(FullAnalysis$interest_response == 'Pretty interesting', 4, 
+                                                                 ifelse(FullAnalysis$interest_response == 'Highly Interesting', 5, 99)))))
+
+summary(FullAnalysis)
+
+FullMWprobe <- rbind(MWProbe1, MWProbe2)
+rm(Analysis, Analysis2, indices, indices2, MWProbe1, MWProbe2, New_part, New_part_survey, New_part_survey_notEnjoy, part, part_survey, playlist, probe_resp, test, test1, test2)
+#===================================================================================================================================================
+#End of processing for Experiment 1
+#===================================================================================================================================================
+
+```
+
+
+```{r processing exp2}
+
+```
+
+
+```{r example for new sections}
+
+```
+
