@@ -292,6 +292,185 @@ rm(Analysis, Analysis2, indices, indices2, MWProbe1, MWProbe2, New_part, New_par
 ```
 
 
+```{r processing exp3}
+#==========================================================================
+#Experiment 3 Task-Switching
+#==========================================================================
+##Creates list of file names
+file_names_listed_EXP3EnjoyTSRaw <- list.files(path = "C:/Users/Cisler/Desktop/Data/For Analysis/Exp3Enjoy/TS/Raw", full.names = TRUE,
+                                             pattern = "*.iqdat")
+
+file_names_listed_EXP3notEnjoyTSRaw <- list.files(path = "C:/Users/Cisler/Desktop/Data/For Analysis/Exp3NotEnjoy/TS/Raw", full.names = TRUE,
+                                                pattern = "*.iqdat")
+
+
+TSAnalysis <- data.frame(matrix(ncol = 11, nrow = 0))
+TSAnalysis2 <- data.frame(matrix(ncol = 11, nrow = 0))
+
+colnames(TSAnalysis) <- c('subject', 'condition', 'congruent_switch_meanACC', 'congruent_switch_meanRT', 'incongruent_switch_meanACC', 'incongruent_switch_meanRT', 'congruent_nonswitch_meanACC', 'congruent_nonswitch_meanRT', 'incongruent_nonswitch_meanACC', 'incongruent_nonswitch_meanRT', 'playlistSel')
+colnames(TSAnalysis2) <- c('subject', 'condition', 'congruent_switch_meanACC', 'congruent_switch_meanRT', 'incongruent_switch_meanACC', 'incongruent_switch_meanRT', 'congruent_nonswitch_meanACC', 'congruent_nonswitch_meanRT', 'incongruent_nonswitch_meanACC', 'incongruent_nonswitch_meanRT', 'playlistSel')
+
+####AutoProcessing Enjoy####
+for (i in 1:length(file_names_listed_EXP3EnjoyTSRaw)) {
+  
+  ####Loading and processing data####
+  #part <- read_xlsx(file_names_listed_EXP1Enjoy[i])
+  part <- read.table(file_names_listed_EXP3EnjoyTSRaw[i],
+                     sep='\t', header=TRUE)
+  
+  ##Remove Practice Trials##
+  filt <- c("practice", "Practice", "soundcheckdir") #terms used to exclude practice trials and sound check trials
+  New_part <- part[!grepl(paste(filt, collapse = "|"), part$blockcode),]
+  playlist <- New_part[grepl("PlaylistPick", New_part$trialcode),]
+  playlist$playlistSel <- playlist$response
+  playlist <- playlist %>% select(playlistSel)
+  New_part <- New_part[!grepl("Music", New_part$trialcode),]
+  New_part <- New_part[!grepl("PlaylistPick", New_part$trialcode),]
+  
+  #congruent: 1 = target symbol and distractor symbol share the same key
+  #incongruent: 2 = target symbol and distractor symbol require opposite keys
+  switchtrials <- New_part %>%
+    group_by(congruence) %>%
+    filter(switch == 1) %>%
+    summarise(MeanACC = mean(correct), MeanRT = mean(latency))
+    
+  
+  nonswitchtrials <- New_part %>%
+    group_by(congruence) %>%
+    filter(switch == 0) %>%
+    summarise(MeanACC = mean(correct), MeanRT = mean(latency))
+  
+  
+  
+  congruentswitch <- switchtrials %>% filter(congruence == 1)
+  congruentswitch <- select(congruentswitch, -c('congruence'))
+  congruentswitch <- congruentswitch %>% rename(CongruentSwitchMeanACC = MeanACC)
+  congruentswitch <- congruentswitch %>% rename(CongruentSwitchMeanRT = MeanRT)
+  
+  incongruentswitch <- switchtrials %>% filter(congruence == 2)
+  incongruentswitch <- select(incongruentswitch, -c('congruence'))
+  incongruentswitch <- incongruentswitch %>% rename(IncongruentSwitchMeanACC = MeanACC)
+  incongruentswitch <- incongruentswitch %>% rename(IncongruentSwitchMeanRT = MeanRT)
+  
+  congruentnonswitch <- nonswitchtrials %>% filter(congruence == 1)
+  congruentnonswitch <- select(congruentnonswitch, -c('congruence'))
+  congruentnonswitch <- congruentnonswitch %>% rename(CongruentNonSwitchMeanACC = MeanACC)
+  congruentnonswitch <- congruentnonswitch %>% rename(CongruentNonSwitchMeanRT = MeanRT)
+  
+  incongruentnonswitch <- nonswitchtrials %>% filter(congruence == 2)
+  incongruentnonswitch <- select(incongruentnonswitch, -c('congruence'))
+  incongruentnonswitch <- incongruentnonswitch %>% rename(IncongruentNonSwitchMeanACC = MeanACC)
+  incongruentnonswitch <- incongruentnonswitch %>% rename(IncongruentNonSwitchMeanRT = MeanRT)
+  
+  
+  TSAnalysis[nrow(TSAnalysis) + 1,] <- c(unique(New_part$subject), paste('enjoy'), congruentswitch$CongruentSwitchMeanACC, congruentswitch$CongruentSwitchMeanRT, 
+                                    incongruentswitch$IncongruentSwitchMeanACC, incongruentswitch$IncongruentSwitchMeanRT,
+                                    congruentnonswitch$CongruentNonSwitchMeanACC, congruentnonswitch$CongruentNonSwitchMeanRT,
+                                    incongruentnonswitch$IncongruentNonSwitchMeanACC, incongruentnonswitch$IncongruentNonSwitchMeanRT,
+                                    playlist$playlistSel)
+
+  
+}
+
+#####Cleaning and Processing Enjoy Survey Responses#####
+##Create blank dataframe
+New_part_survey <- data.frame(matrix(ncol = 21, nrow = 0))
+colnames(New_part_survey) <- c('subject', 'mentaldemand_response', 'mentaldemand_latency', 'physicaldemand_response', 'physicaldemand_latency', 'temporaldemand_response', 'temporaldemand_latency', 'performance_response', 'performance_latency', 'effort_response', 'effort_latency', 'frustration_response', 'frustration_latency', 'difficulty_response',  'difficulty_latency', 'GTQ_response', 'GTQ_latency', 'interest_response', 'interest_latency', 'paid_response', 'paid_latency')
+
+##Create list of file names in Enjoy Survey Directory
+file_names_listed_EXP1EnjoySurvey <- list.files(path = "C:/Users/Cisler/Desktop/Data/For Analysis/Exp1Enjoy/Survey", full.names = TRUE,
+                                                pattern = "*.iqdat")
+
+
+##Auto Process Enjoy Survey Data
+for (j in 1:length(file_names_listed_EXP1EnjoySurvey)) {
+  part_survey <- read.table(file_names_listed_EXP1EnjoySurvey[j],
+                            sep='\t', header=TRUE)
+  
+  #Removes unwanted columns from survey data
+  # part_survey <- subset(part_survey, select = c(subject, mentaldemand_response, physicaldemand_response, temporaldemand_response,
+  #                                               performance_response, effort_response, frustration_response, difficulty_response,
+  #                                               GTQ_response, interest_response, paid_response))
+  part_survey <- subset(part_survey, select = -c(date, time, group, session, build)) 
+  
+  #Appends new row to created dataframe with each processed Survey response
+  # New_part_survey[nrow(New_part_survey) + 1,] <- c(part_survey$subject, part_survey$mentaldemand_response, part_survey$physicaldemand_response, part_survey$temporaldemand_response,
+  #                                                  part_survey$performance_response, part_survey$effort_response, part_survey$frustration_response, part_survey$difficulty_response,
+  #                                                  part_survey$GTQ_response, part_survey$interest_response, part_survey$paid_response )
+  
+  New_part_survey[nrow(New_part_survey) + 1,] <- part_survey
+  New_part_survey$subject <- as.character(New_part_survey$subject)
+}
+
+#Processing TS for Not Enjoy Condition
+for (i in 1:length(file_names_listed_EXP3notEnjoyTSRaw)) {
+  
+  ####Loading and processing data####
+  #part <- read_xlsx(file_names_listed_EXP1Enjoy[i])
+  part <- read.table(file_names_listed_EXP3notEnjoyTSRaw[i],
+                     sep='\t', header=TRUE)
+  
+  ##Remove Practice Trials##
+  filt <- c("practice", "Practice", "soundcheckdir") #terms used to exclude practice trials and sound check trials
+  New_part <- part[!grepl(paste(filt, collapse = "|"), part$blockcode),]
+  playlist <- New_part[grepl("PlaylistPick", New_part$trialcode),]
+  playlist$playlistSel <- playlist$response
+  playlist <- playlist %>% select(playlistSel)
+  New_part <- New_part[!grepl("Music", New_part$trialcode),]
+  New_part <- New_part[!grepl("PlaylistPick", New_part$trialcode),]
+  
+  #congruent: 1 = target symbol and distractor symbol share the same key
+  #incongruent: 2 = target symbol and distractor symbol require opposite keys
+  switchtrials <- New_part %>%
+    group_by(congruence) %>%
+    filter(switch == 1) %>%
+    summarise(MeanACC = mean(correct), MeanRT = mean(latency))
+  
+  
+  nonswitchtrials <- New_part %>%
+    group_by(congruence) %>%
+    filter(switch == 0) %>%
+    summarise(MeanACC = mean(correct), MeanRT = mean(latency))
+  
+  
+  
+  congruentswitch <- switchtrials %>% filter(congruence == 1)
+  congruentswitch <- select(congruentswitch, -c('congruence'))
+  congruentswitch <- congruentswitch %>% rename(CongruentSwitchMeanACC = MeanACC)
+  congruentswitch <- congruentswitch %>% rename(CongruentSwitchMeanRT = MeanRT)
+  
+  incongruentswitch <- switchtrials %>% filter(congruence == 2)
+  incongruentswitch <- select(incongruentswitch, -c('congruence'))
+  incongruentswitch <- incongruentswitch %>% rename(IncongruentSwitchMeanACC = MeanACC)
+  incongruentswitch <- incongruentswitch %>% rename(IncongruentSwitchMeanRT = MeanRT)
+  
+  congruentnonswitch <- nonswitchtrials %>% filter(congruence == 1)
+  congruentnonswitch <- select(congruentnonswitch, -c('congruence'))
+  congruentnonswitch <- congruentnonswitch %>% rename(CongruentNonSwitchMeanACC = MeanACC)
+  congruentnonswitch <- congruentnonswitch %>% rename(CongruentNonSwitchMeanRT = MeanRT)
+  
+  incongruentnonswitch <- nonswitchtrials %>% filter(congruence == 2)
+  incongruentnonswitch <- select(incongruentnonswitch, -c('congruence'))
+  incongruentnonswitch <- incongruentnonswitch %>% rename(IncongruentNonSwitchMeanACC = MeanACC)
+  incongruentnonswitch <- incongruentnonswitch %>% rename(IncongruentNonSwitchMeanRT = MeanRT)
+  
+  
+  TSAnalysis2[nrow(TSAnalysis2) + 1,] <- c(unique(New_part$subject), paste('not enjoy'), congruentswitch$CongruentSwitchMeanACC, congruentswitch$CongruentSwitchMeanRT, 
+                                         incongruentswitch$IncongruentSwitchMeanACC, incongruentswitch$IncongruentSwitchMeanRT,
+                                         congruentnonswitch$CongruentNonSwitchMeanACC, congruentnonswitch$CongruentNonSwitchMeanRT,
+                                         incongruentnonswitch$IncongruentNonSwitchMeanACC, incongruentnonswitch$IncongruentNonSwitchMeanRT,
+                                         playlist$playlistSel)
+  
+  
+}
+FullTSAnalysis <- rbind(TSAnalysis, TSAnalysis2)
+
+
+FullTSAnalysis %>% t_test(incongruent_switch_meanACC ~ condition)
+
+```
+
+
 ```{r example for new sections}
 
 ```
