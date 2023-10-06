@@ -90,6 +90,17 @@ for (i in 1:length(file_names_listed_EXP1EnjoyRaw)) {
   probe_resp <- probe_resp[!grepl("soundcheckdir", probe_resp$blockcode),]
   probe_resp <- probe_resp %>% select(c(subject, trialnum, trialcode, response, RespLog))
   #assign(paste0("probe_resp", i), probe_resp)
+  
+  #Begin processing steps to remove crap trials
+  #What are the rules I want to enforce for bad data
+  #The original developers of the SART task references Cheyne et al. 2009 in stating anything response less than 100 ms is considered anticipatory.  Any response 200ms and above is considered valid.  Responses between the 100ms and 200ms range is considered ambiguous.
+  #For this analysis I am going to filter out all trials that are 100ms and below as they are either products of the previous missed trial or is someone engaging in rapid button pushing.  I will keep ambiguous and valid trials as there is evidence provided by other research of speed/accuracy trade-offs.  It could be overtime ppl are increasing their response speed without realizing it.
+  
+  GoTrial <- New_part[New_part$trialcode == 'go',]
+  GoTrial <- GoTrial %>% filter(RT > 100)
+  
+  NoGoTrial <- New_part[New_part$trialtype == 'NoGo', ]
+  
   #Calculate means for Go and NoGo trials then store in separate dataframes
   test <- New_part %>%
     group_by(trialtype) %>%
