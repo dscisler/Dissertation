@@ -27,8 +27,29 @@ library(psycho)
 library(ggplot2)
 library(hrbrthemes)
 library(PerformanceAnalytics)
+library(tools)
 ```
 
+```{r}
+#Which post-task surveys do I need to download?
+#EX1
+file_names_listed_EXP1EnjoyRaw <- list.files(path = "C:/Users/Cisler/Desktop/Data/For Analysis/Exp1Enjoy/Raw", full.names = TRUE,
+                                             pattern = "*.iqdat")
+
+file_names_listed_EXP1EnjoyRawsurvey <- list.files(path = "C:/Users/Cisler/Desktop/Data/For Analysis/Exp1Enjoy/Survey", full.names = TRUE,
++                                              pattern = "*.iqdat")
+
+filelistTab <- as.data.frame(file_names_listed_EXP1EnjoyRaw)
+filelistTab <- as.data.frame(basename(file_names_listed_EXP1EnjoyRaw))
+filelistTab2 <- str_sub(filelistTab$`basename(file_names_listed_EXP1EnjoyRaw)`, -39, -1)
+filelistTab2 <- as.data.frame(filelistTab2)
+
+filelistTabsurv <- as.data.frame(basename(file_names_listed_EXP1EnjoyRawsurvey))
+filelistTabsurv2 <- str_sub(filelistTabsurv$`basename(file_names_listed_EXP1EnjoyRawsurvey)`, -39, -1)
+filelistTabsurv2 <- as.data.frame(filelistTabsurv2)
+filesneed <- filelistTab2[!filelistTab2$filelistTab2 %in% filelistTabsurv2$filelistTabsurv2, ]
+filesneed <- as.data.frame(filesneed)
+```
 
 
 ```{r processing exp1}
@@ -99,7 +120,7 @@ for (i in 1:length(file_names_listed_EXP1EnjoyRaw)) {
   #For this analysis I am going to filter out all trials that are 100ms and below as they are either products of the previous missed trial or is someone engaging in rapid button pushing.  I will keep ambiguous and valid trials as there is evidence provided by other research of speed/accuracy trade-offs.  It could be overtime ppl are increasing their response speed without realizing it.
   
   GoTrial <- New_part[New_part$trialcode == 'go',]
-  GoTrial <- GoTrial %>% filter(RT > 100)
+  GoTrial <- GoTrial %>% filter(latency > 100)
   
   NoGoTrial <- New_part[New_part$trialtype == 'NoGo', ]
   
@@ -113,7 +134,9 @@ for (i in 1:length(file_names_listed_EXP1EnjoyRaw)) {
   
   test1 <- test[test$trialtype == 'Go',]
   test2 <- test[test$trialtype == 'NoGo',]
-  Analysis[nrow(Analysis) + 1,] <- c(unique(New_part$subject), paste('enjoy'), test1$Means, mean(New_part$RT, na.rm = TRUE), test2$Means, sum(New_part$hit), sum(New_part$miss), sum(New_part$fa), sum(New_part$cr), playlist$playlistSel)
+  
+ 
+  Analysis[nrow(Analysis) + 1,] <- c(unique(procPart$subject), paste('enjoy'), test1$Means, mean(procPart$RT, na.rm = TRUE), test2$Means, sum(procPart$hit), sum(procPart$miss), sum(procPart$fa), sum(procPart$cr), playlist$playlistSel)
   MWProbe1 <- rbind(MWProbe1, probe_resp)
   
 }
