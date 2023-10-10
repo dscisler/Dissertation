@@ -226,15 +226,23 @@ for (i in 1:length(file_names_listed_EXP1notEnjoyRaw)) {
   probe_resp <- probe_resp[!grepl("PlaylistPick", probe_resp$trialcode),]
   probe_resp <- probe_resp[!grepl("soundcheckdir", probe_resp$blockcode),]
   probe_resp <- probe_resp %>% select(c(subject, trialnum, trialcode, response, RespLog))
+  
+  GoTrial <- New_part[New_part$trialcode == 'go',]
+  GoTrial <- GoTrial %>% filter(latency > 100)
+  
+  NoGoTrial <- New_part[New_part$trialtype == 'NoGo', ]
+  
+  procPart <- rbind(GoTrial, NoGoTrial)
+  
   #Calculate means for Go and NoGo trials then store in separate dataframes
-  test <- New_part %>%
+  test <- procPart %>%
     group_by(trialtype) %>%
     filter(grepl("Go", trialtype)) %>%
     summarise(Means = mean(correct))
   
   test1 <- test[test$trialtype == 'Go',]
   test2 <- test[test$trialtype == 'NoGo',]
-  Analysis2[nrow(Analysis2) + 1,] <- c(unique(New_part$subject), paste('not enjoy'), test1$Means, mean(New_part$RT, na.rm = TRUE), test2$Means, sum(New_part$hit), sum(New_part$miss), sum(New_part$fa), sum(New_part$cr), playlist$playlistSel)
+  Analysis2[nrow(Analysis2) + 1,] <- c(unique(procPart$subject), paste('not enjoy'), test1$Means, mean(procPart$RT, na.rm = TRUE), test2$Means, sum(procPart$hit), sum(procPart$miss), sum(procPart$fa), sum(procPart$cr), playlist$playlistSel)
   MWProbe2 <- rbind(MWProbe2, probe_resp)
   
 }
