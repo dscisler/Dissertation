@@ -14,6 +14,8 @@ Quarto enables you to weave together content and executable code into a finished
 When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
 
 ```{r Load Each Participant}
+library(ggpubr)
+
 file_names_listed_EXP1EnjoyRaw <- list.files(path = "C:/Users/Cisler/Desktop/Data/For Analysis/Exp1Enjoy/Raw", full.names = TRUE,
                                              pattern = "*.iqdat")
 
@@ -28,9 +30,9 @@ partEnjoy <- read.table(file_names_listed_EXP1EnjoyRaw[i],
 
 partEnjoy <- partEnjoy %>% filter(blockcode == 'SART')
 partEnjoy <- partEnjoy %>% filter(grepl("Go", trialtype))
-partEnjoy$filt1 <- ifelse(partEnjoy$trialtype == 'Go' & partEnjoy$latency >= 300 & partEnjoy$response == 57, 'Go Success', ifelse(partEnjoy$trialtype == 'Go' & partEnjoy$latency < 100, 'Go Anticipatory', ifelse(partEnjoy$trialtype == 'NoGo' & partEnjoy$response == 57, 'NoGo Failure', ifelse(partEnjoy$trialtype == 'NoGo' & partEnjoy$response == 0, 'NoGo Success',ifelse(partEnjoy$trialtype == 'Go' & partEnjoy$response == 0, 'Omission', 'Go Ambiguous')))))
+partEnjoy$filt1 <- ifelse(partEnjoy$trialtype == 'Go' & partEnjoy$latency >= 300 & partEnjoy$response == 57, 'Go Success', ifelse(partEnjoy$trialtype == 'Go' & partEnjoy$latency < 200, 'Go Anticipatory', ifelse(partEnjoy$trialtype == 'NoGo' & partEnjoy$response == 57, 'NoGo Failure', ifelse(partEnjoy$trialtype == 'NoGo' & partEnjoy$response == 0, 'NoGo Success',ifelse(partEnjoy$trialtype == 'Go' & partEnjoy$response == 0, 'Omission', 'Go Ambiguous')))))
 
-partEnjoy$filt2 <- ifelse(partEnjoy$trialtype == 'Go' & partEnjoy$latency >= 400 & partEnjoy$response == 57, 'Go Success', ifelse(partEnjoy$trialtype == 'Go' & partEnjoy$latency < 100, 'Go Anticipatory', ifelse(partEnjoy$trialtype == 'NoGo' & partEnjoy$response == 57, 'NoGo Failure', ifelse(partEnjoy$trialtype == 'NoGo' & partEnjoy$response == 0, 'NoGo Success',ifelse(partEnjoy$trialtype == 'Go' & partEnjoy$response == 0, 'Omission', 'Go Ambiguous')))))
+partEnjoy$filt2 <- ifelse(partEnjoy$trialtype == 'Go' & partEnjoy$latency >= 400 & partEnjoy$response == 57, 'Go Success', ifelse(partEnjoy$trialtype == 'Go' & partEnjoy$latency < 300, 'Go Anticipatory', ifelse(partEnjoy$trialtype == 'NoGo' & partEnjoy$response == 57, 'NoGo Failure', ifelse(partEnjoy$trialtype == 'NoGo' & partEnjoy$response == 0, 'NoGo Success',ifelse(partEnjoy$trialtype == 'Go' & partEnjoy$response == 0, 'Omission', 'Go Ambiguous')))))
 
 
 partEnjoy <- partEnjoy %>% select(build, computer.platform, date, time, subject, group, sessionid, blockcode, blocknum, trialcode, trialnum, trialcount, digitpresentationtime, maskpresentationtime, trialtype, digit, fontsize, response, correct, RT, latency, latencytype, responsetype, count_anticipatory, correctsuppressions, incorrectsuppressions, count_NoGo, count_Go, count_validgo, countprobes, radiobuttons.difficulty.response, radiobuttons.interest.response, slider.GTQ.response, slider.paid.response, radiobuttons.PlaylistPick.response, rock, sc, sccount, radiobuttons.gender.response, radiobuttons.handedness.response, radiobuttons.meds.response, radiobuttons.diag.response, radiobuttons.vision.response, radiobuttons.hearing.response, video.soundtest.currentitem, screenCred, filt1, filt2)
@@ -53,9 +55,9 @@ partnotEnjoy <- partnotEnjoy %>% filter(grepl("Go", trialtype))
 
 partnotEnjoy <- partnotEnjoy %>% filter(blockcode == 'SART')
 partnotEnjoy <- partnotEnjoy %>% filter(grepl("Go", trialtype))
-partnotEnjoy$filt1 <- ifelse(partnotEnjoy$trialtype == 'Go' & partnotEnjoy$latency >= 300 & partnotEnjoy$response == 57, 'Go Success', ifelse(partnotEnjoy$trialtype == 'Go' & partnotEnjoy$latency < 100, 'Go Anticipatory', ifelse(partnotEnjoy$trialtype == 'NoGo' & partnotEnjoy$response == 57, 'NoGo Failure', ifelse(partnotEnjoy$trialtype == 'NoGo' & partnotEnjoy$response == 0, 'NoGo Success',ifelse(partnotEnjoy$trialtype == 'Go' & partnotEnjoy$response == 0, 'Omission', 'Go Ambiguous')))))
+partnotEnjoy$filt1 <- ifelse(partnotEnjoy$trialtype == 'Go' & partnotEnjoy$latency >= 300 & partnotEnjoy$response == 57, 'Go Success', ifelse(partnotEnjoy$trialtype == 'Go' & partnotEnjoy$latency < 200, 'Go Anticipatory', ifelse(partnotEnjoy$trialtype == 'NoGo' & partnotEnjoy$response == 57, 'NoGo Failure', ifelse(partnotEnjoy$trialtype == 'NoGo' & partnotEnjoy$response == 0, 'NoGo Success',ifelse(partnotEnjoy$trialtype == 'Go' & partnotEnjoy$response == 0, 'Omission', 'Go Ambiguous')))))
 
-partnotEnjoy$filt2 <- ifelse(partnotEnjoy$trialtype == 'Go' & partnotEnjoy$latency >= 400 & partnotEnjoy$response == 57, 'Go Success', ifelse(partnotEnjoy$trialtype == 'Go' & partnotEnjoy$latency < 100, 'Go Anticipatory', ifelse(partnotEnjoy$trialtype == 'NoGo' & partnotEnjoy$response == 57, 'NoGo Failure', ifelse(partnotEnjoy$trialtype == 'NoGo' & partnotEnjoy$response == 0, 'NoGo Success',ifelse(partnotEnjoy$trialtype == 'Go' & partnotEnjoy$response == 0, 'Omission', 'Go Ambiguous')))))
+partnotEnjoy$filt2 <- ifelse(partnotEnjoy$trialtype == 'Go' & partnotEnjoy$latency >= 400 & partnotEnjoy$response == 57, 'Go Success', ifelse(partnotEnjoy$trialtype == 'Go' & partnotEnjoy$latency < 300, 'Go Anticipatory', ifelse(partnotEnjoy$trialtype == 'NoGo' & partnotEnjoy$response == 57, 'NoGo Failure', ifelse(partnotEnjoy$trialtype == 'NoGo' & partnotEnjoy$response == 0, 'NoGo Success',ifelse(partnotEnjoy$trialtype == 'Go' & partnotEnjoy$response == 0, 'Omission', 'Go Ambiguous')))))
 
 
 partnotEnjoy <- partnotEnjoy %>% select(build, computer.platform, date, time, subject, group, sessionid, blockcode, blocknum, trialcode, trialnum, trialcount, digitpresentationtime, maskpresentationtime, trialtype, digit, fontsize, response, correct, RT, latency, latencytype, responsetype, count_anticipatory, correctsuppressions, incorrectsuppressions, count_NoGo, count_Go, count_validgo, countprobes, radiobuttons.difficulty.response, radiobuttons.interest.response, slider.GTQ.response, slider.paid.response, radiobuttons.PlaylistPick.response, rock, sc, sccount, radiobuttons.gender.response, radiobuttons.handedness.response, radiobuttons.meds.response, radiobuttons.diag.response, radiobuttons.vision.response, radiobuttons.hearing.response, video.soundtest.currentitem, screenCred, filt1, filt2)
@@ -130,37 +132,327 @@ partPlot2 <- ggplot(data = df, aes(x = trialcount, y = latency, color = filt2)) 
   geom_smooth()
 
 assign(sprintf('plotFilt2_%s', ListNames[i]), partPlot2)
+
+
 }
 
-partPlot <- ggplot(data = dd, aes(x = responsetype, y = latency, color = cluster)) +
-  #geom_line() +
-  geom_bar(stat = "summary", fun = "mean") 
-partPlot
 
-partPlot <- ggplot(data = dd, aes(x = cluster, y = latency, color = cluster)) +
-  geom_bar() 
-  # geom_point() + 
-  # geom_line()
+figure <- ggarrange(plot_Enjoy1, plotFilt1_Enjoy1, plotFilt2_Enjoy1,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
 
-partPlot
+figure
 
-partPlot <- ggplot(data = dd, aes(x = trialcount, y = latency, color = cluster)) +
-  #geom_bar(stat = "summary", fun = "mean") 
-   geom_point() + 
-   geom_line()
+figure <- ggarrange(plot_Enjoy2, plotFilt1_Enjoy2, plotFilt2_Enjoy2,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
 
-partPlot
+figure <- ggarrange(plot_Enjoy3, plotFilt1_Enjoy3, plotFilt2_Enjoy3,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
 
-Enjoy1clust <- cbind(Enjoy1, cluster = km.res$cluster)
+figure <- ggarrange(plot_Enjoy4, plotFilt1_Enjoy4, plotFilt2_Enjoy4,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
 
-trialtest <- Enjoy1clust %>% filter(cluster == 1)
+figure <- ggarrange(plot_Enjoy5, plotFilt1_Enjoy5, plotFilt2_Enjoy5,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
 
-partPlot <- ggplot(data = dd, aes(x = trialcount, y = latency, color = responsetype)) +
-  #geom_bar(stat = "summary", fun = "mean") 
-    geom_point() +  
-    geom_smooth(method = "lm", alpha = .25, aes(fill = responsetype))
+figure <- ggarrange(plot_Enjoy6, plotFilt1_Enjoy6, plotFilt2_Enjoy6,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
 
-partPlot
+#Participant 7 is heavily penalized at the 300ms filter
+figure <- ggarrange(plot_Enjoy7, plotFilt1_Enjoy7, plotFilt2_Enjoy7,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+#Participant 8 has a high nogo success rate and the 300ms filter heavily penalizes them at the end of the task.  I don't think they are just mindlessly responding.  I think this person is efficient at performing the task.
+figure <- ggarrange(plot_Enjoy8, plotFilt1_Enjoy8, plotFilt2_Enjoy8,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+figure <- ggarrange(plot_Enjoy9, plotFilt1_Enjoy9, plotFilt2_Enjoy9,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+figure <- ggarrange(plot_Enjoy10, plotFilt1_Enjoy10, plotFilt2_Enjoy10,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+figure <- ggarrange(plot_Enjoy11, plotFilt1_Enjoy11, plotFilt2_Enjoy11,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+figure <- ggarrange(plot_Enjoy12, plotFilt1_Enjoy12, plotFilt2_Enjoy12,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+figure <- ggarrange(plot_Enjoy13, plotFilt1_Enjoy13, plotFilt2_Enjoy13,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+figure <- ggarrange(plot_Enjoy14, plotFilt1_Enjoy14, plotFilt2_Enjoy14,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+figure <- ggarrange(plot_Enjoy15, plotFilt1_Enjoy15, plotFilt2_Enjoy15,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+#This person seems to have just quickly responded to the trials.  
+figure <- ggarrange(plot_Enjoy16, plotFilt1_Enjoy16, plotFilt2_Enjoy16,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+figure <- ggarrange(plot_Enjoy17, plotFilt1_Enjoy17, plotFilt2_Enjoy17,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+#Participant 18 is heavily penalized by 300ms filter
+figure <- ggarrange(plot_Enjoy18, plotFilt1_Enjoy18, plotFilt2_Enjoy18,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+#Participant looks like they were just button mashing
+figure <- ggarrange(plot_Enjoy19, plotFilt1_Enjoy19, plotFilt2_Enjoy19,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+figure <- ggarrange(plot_Enjoy20, plotFilt1_Enjoy20, plotFilt2_Enjoy20,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+#I can't tell if participant 21 was just button mashing or happened to be quick to respond.  But they were heavily penalized by the 300ms filter.
+figure <- ggarrange(plot_Enjoy21, plotFilt1_Enjoy21, plotFilt2_Enjoy21,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+#Participant22 was heavily penalized by the 300ms filter
+figure <- ggarrange(plot_Enjoy22, plotFilt1_Enjoy22, plotFilt2_Enjoy22,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+#Participant23 was heavily penalized by the 300ms filter
+figure <- ggarrange(plot_Enjoy23, plotFilt1_Enjoy23, plotFilt2_Enjoy23,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+#Participant 24 was just button mashing.  The 300ms filter heavily penalized them.
+figure <- ggarrange(plot_Enjoy24, plotFilt1_Enjoy24, plotFilt2_Enjoy24,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+#Participant25 was heavily penalized by the 300ms filter
+figure <- ggarrange(plot_Enjoy25, plotFilt1_Enjoy25, plotFilt2_Enjoy25,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+#I can't tell if this person is another button masher.  Participant 26 was heavily penalized by the 300ms filter.
+figure <- ggarrange(plot_Enjoy26, plotFilt1_Enjoy26, plotFilt2_Enjoy26,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+#Participant 27 heavily penalized by 300ms filter.
+figure <- ggarrange(plot_Enjoy27, plotFilt1_Enjoy27, plotFilt2_Enjoy27,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+#Not Enjoy Part1 just button mashed
+figure <- ggarrange(plot_NotEnjoy1, plotFilt1_NotEnjoy1, plotFilt2_NotEnjoy1,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+#Not Enjoy Part2 seemed to be over penalized by 300ms filter, but they seemed to take the task seriously and put in an honest effort.
+figure <- ggarrange(plot_NotEnjoy2, plotFilt1_NotEnjoy2, plotFilt2_NotEnjoy2,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+#Not Enjoy Part3 seemed to be over penalized by 300ms filter, but they seemed to take the task seriously and put in an honest effort.
+figure <- ggarrange(plot_NotEnjoy3, plotFilt1_NotEnjoy3, plotFilt2_NotEnjoy3,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+#Not Enjoy Part4 seemed to be over penalized by 300ms filter.
+figure <- ggarrange(plot_NotEnjoy4, plotFilt1_NotEnjoy4, plotFilt2_NotEnjoy4,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+#Not Enjoy Part5 seemed to be over penalized by 300ms filter.
+figure <- ggarrange(plot_NotEnjoy5, plotFilt1_NotEnjoy5, plotFilt2_NotEnjoy5,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+#Participant 6 did not respond to any of the trials - EXCLUDE
+figure <- ggarrange(plot_NotEnjoy6, plotFilt1_NotEnjoy6, plotFilt2_NotEnjoy6,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+#Not Enjoy Part7 seemed to be over penalized by 300ms filter.
+figure <- ggarrange(plot_NotEnjoy7, plotFilt1_NotEnjoy7, plotFilt2_NotEnjoy7,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+#Not Enjoy Part 8 is a speedy responder, but took the task seriously.  They were efficient with their responses.
+figure <- ggarrange(plot_NotEnjoy8, plotFilt1_NotEnjoy8, plotFilt2_NotEnjoy8,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+#Not Enjoy Part 9 should be excluded.  They either button mashed or ignored the trials.
+figure <- ggarrange(plot_NotEnjoy9, plotFilt1_NotEnjoy9, plotFilt2_NotEnjoy9,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+#Not Enjoy Part10 seemed to be over penalized by 300ms filter.
+figure <- ggarrange(plot_NotEnjoy10, plotFilt1_NotEnjoy10, plotFilt2_NotEnjoy10,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+#Not Enjoy Part11 seemed to be over penalized by 300ms filter.
+figure <- ggarrange(plot_NotEnjoy11, plotFilt1_NotEnjoy11, plotFilt2_NotEnjoy11,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+#Not Enjoy Part12 seemed to be over penalized by 300ms filter.
+figure <- ggarrange(plot_NotEnjoy12, plotFilt1_NotEnjoy12, plotFilt2_NotEnjoy12,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+#Not Enjoy Part13 seemed to be over penalized by 300ms filter.
+figure <- ggarrange(plot_NotEnjoy13, plotFilt1_NotEnjoy13, plotFilt2_NotEnjoy13,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+#Not Enjoy Part14 seemed to be over penalized by 300ms filter.
+figure <- ggarrange(plot_NotEnjoy14, plotFilt1_NotEnjoy14, plotFilt2_NotEnjoy14,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+#Not Enjoy Part 15 is a speedy responder, but took the task seriously.  They were efficient with their responses.
+figure <- ggarrange(plot_NotEnjoy15, plotFilt1_NotEnjoy15, plotFilt2_NotEnjoy15,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+#Not Enjoy Part 16 is a speedy responder, but took the task seriously.  They were efficient with their responses.
+figure <- ggarrange(plot_NotEnjoy16, plotFilt1_NotEnjoy16, plotFilt2_NotEnjoy16,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+#Not Enjoy Part17 seemed to be over penalized by 300ms filter.
+figure <- ggarrange(plot_NotEnjoy17, plotFilt1_NotEnjoy17, plotFilt2_NotEnjoy17,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+#Not Enjoy Part18 seemed to be over penalized by 300ms filter.
+figure <- ggarrange(plot_NotEnjoy18, plotFilt1_NotEnjoy18, plotFilt2_NotEnjoy18,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+#Not Enjoy Part19 seemed to be over penalized by 300ms filter.  I can't tell if they took the task seriously or not.
+figure <- ggarrange(plot_NotEnjoy19, plotFilt1_NotEnjoy19, plotFilt2_NotEnjoy19,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+#Not Enjoy Part20 seemed to be over penalized by 300ms filter.
+figure <- ggarrange(plot_NotEnjoy20, plotFilt1_NotEnjoy20, plotFilt2_NotEnjoy20,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+#Not Enjoy Part21 seemed to be over penalized by 300ms filter.  I can't tell if they took the task seriously or not.
+figure <- ggarrange(plot_NotEnjoy21, plotFilt1_NotEnjoy21, plotFilt2_NotEnjoy21,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+#Not Enjoy Part22 seemed to be over penalized by 300ms filter.
+figure <- ggarrange(plot_NotEnjoy22, plotFilt1_NotEnjoy22, plotFilt2_NotEnjoy22,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+#Not Enjoy Part23 seemed to be over penalized by 300ms filter.
+figure <- ggarrange(plot_NotEnjoy23, plotFilt1_NotEnjoy23, plotFilt2_NotEnjoy23,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figure
+
+
+# partPlot <- ggplot(data = dd, aes(x = responsetype, y = latency, color = cluster)) +
+#   #geom_line() +
+#   geom_bar(stat = "summary", fun = "mean") 
+# partPlot
+# 
+# partPlot <- ggplot(data = dd, aes(x = cluster, y = latency, color = cluster)) +
+#   geom_bar() 
+#   # geom_point() + 
+#   # geom_line()
+# 
+# partPlot
+# 
+# partPlot <- ggplot(data = dd, aes(x = trialcount, y = latency, color = cluster)) +
+#   #geom_bar(stat = "summary", fun = "mean") 
+#    geom_point() + 
+#    geom_line()
+# 
+# partPlot
+# 
+# Enjoy1clust <- cbind(Enjoy1, cluster = km.res$cluster)
+# 
+# trialtest <- Enjoy1clust %>% filter(cluster == 1)
+# 
+# partPlot <- ggplot(data = dd, aes(x = trialcount, y = latency, color = responsetype)) +
+#   #geom_bar(stat = "summary", fun = "mean") 
+#     geom_point() +  
+#     geom_smooth(method = "lm", alpha = .25, aes(fill = responsetype))
+# 
+# partPlot
 
 
 
