@@ -1,0 +1,170 @@
+---
+title: "ParticipantAnalysis"
+author: "Dean Cisler"
+format: docx
+editor: visual
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r Load Each Participant}
+file_names_listed_EXP1EnjoyRaw <- list.files(path = "C:/Users/Cisler/Desktop/Data/For Analysis/Exp1Enjoy/Raw", full.names = TRUE,
+                                             pattern = "*.iqdat")
+
+file_names_listed_EXP1notEnjoyRaw <- list.files(path = "C:/Users/Cisler/Desktop/Data/For Analysis/Exp1NotEnjoy/Raw", full.names = TRUE,
+                                                pattern = "*.iqdat")
+
+for (i in 1:length(file_names_listed_EXP1EnjoyRaw)) {
+#Enjoy
+EXP1EnjoyRaw <- basename(file_names_listed_EXP1EnjoyRaw)
+partEnjoy <- read.table(file_names_listed_EXP1EnjoyRaw[i],
+                     sep='\t', header=TRUE)
+
+partEnjoy <- partEnjoy %>% filter(blockcode == 'SART')
+partEnjoy <- partEnjoy %>% filter(grepl("Go", trialtype))
+partEnjoy$filt1 <- ifelse(partEnjoy$trialtype == 'Go' & partEnjoy$latency >= 300 & partEnjoy$response == 57, 'Go Success', ifelse(partEnjoy$trialtype == 'Go' & partEnjoy$latency < 100, 'Go Anticipatory', ifelse(partEnjoy$trialtype == 'NoGo' & partEnjoy$response == 57, 'NoGo Failure', ifelse(partEnjoy$trialtype == 'NoGo' & partEnjoy$response == 0, 'NoGo Success',ifelse(partEnjoy$trialtype == 'Go' & partEnjoy$response == 0, 'Omission', 'Go Ambiguous')))))
+
+partEnjoy$filt2 <- ifelse(partEnjoy$trialtype == 'Go' & partEnjoy$latency >= 400 & partEnjoy$response == 57, 'Go Success', ifelse(partEnjoy$trialtype == 'Go' & partEnjoy$latency < 100, 'Go Anticipatory', ifelse(partEnjoy$trialtype == 'NoGo' & partEnjoy$response == 57, 'NoGo Failure', ifelse(partEnjoy$trialtype == 'NoGo' & partEnjoy$response == 0, 'NoGo Success',ifelse(partEnjoy$trialtype == 'Go' & partEnjoy$response == 0, 'Omission', 'Go Ambiguous')))))
+
+
+partEnjoy <- partEnjoy %>% select(build, computer.platform, date, time, subject, group, sessionid, blockcode, blocknum, trialcode, trialnum, trialcount, digitpresentationtime, maskpresentationtime, trialtype, digit, fontsize, response, correct, RT, latency, latencytype, responsetype, count_anticipatory, correctsuppressions, incorrectsuppressions, count_NoGo, count_Go, count_validgo, countprobes, radiobuttons.difficulty.response, radiobuttons.interest.response, slider.GTQ.response, slider.paid.response, radiobuttons.PlaylistPick.response, rock, sc, sccount, radiobuttons.gender.response, radiobuttons.handedness.response, radiobuttons.meds.response, radiobuttons.diag.response, radiobuttons.vision.response, radiobuttons.hearing.response, video.soundtest.currentitem, screenCred, filt1, filt2)
+
+
+
+#assign(paste0(EXP1EnjoyRaw[i]), partEnjoy) 
+assign(sprintf('Enjoy%s', i), partEnjoy) 
+}
+
+
+for (i in 1:length(file_names_listed_EXP1notEnjoyRaw)) {
+#Not Enjoy
+EXP1notEnjoyRaw <- basename(file_names_listed_EXP1notEnjoyRaw)
+partnotEnjoy <- read.table(file_names_listed_EXP1notEnjoyRaw[i],
+                     sep='\t', header=TRUE)
+
+partnotEnjoy <- partnotEnjoy %>% filter(blockcode == 'SART')
+partnotEnjoy <- partnotEnjoy %>% filter(grepl("Go", trialtype))
+
+partnotEnjoy <- partnotEnjoy %>% filter(blockcode == 'SART')
+partnotEnjoy <- partnotEnjoy %>% filter(grepl("Go", trialtype))
+partnotEnjoy$filt1 <- ifelse(partnotEnjoy$trialtype == 'Go' & partnotEnjoy$latency >= 300 & partnotEnjoy$response == 57, 'Go Success', ifelse(partnotEnjoy$trialtype == 'Go' & partnotEnjoy$latency < 100, 'Go Anticipatory', ifelse(partnotEnjoy$trialtype == 'NoGo' & partnotEnjoy$response == 57, 'NoGo Failure', ifelse(partnotEnjoy$trialtype == 'NoGo' & partnotEnjoy$response == 0, 'NoGo Success',ifelse(partnotEnjoy$trialtype == 'Go' & partnotEnjoy$response == 0, 'Omission', 'Go Ambiguous')))))
+
+partnotEnjoy$filt2 <- ifelse(partnotEnjoy$trialtype == 'Go' & partnotEnjoy$latency >= 400 & partnotEnjoy$response == 57, 'Go Success', ifelse(partnotEnjoy$trialtype == 'Go' & partnotEnjoy$latency < 100, 'Go Anticipatory', ifelse(partnotEnjoy$trialtype == 'NoGo' & partnotEnjoy$response == 57, 'NoGo Failure', ifelse(partnotEnjoy$trialtype == 'NoGo' & partnotEnjoy$response == 0, 'NoGo Success',ifelse(partnotEnjoy$trialtype == 'Go' & partnotEnjoy$response == 0, 'Omission', 'Go Ambiguous')))))
+
+
+partnotEnjoy <- partnotEnjoy %>% select(build, computer.platform, date, time, subject, group, sessionid, blockcode, blocknum, trialcode, trialnum, trialcount, digitpresentationtime, maskpresentationtime, trialtype, digit, fontsize, response, correct, RT, latency, latencytype, responsetype, count_anticipatory, correctsuppressions, incorrectsuppressions, count_NoGo, count_Go, count_validgo, countprobes, radiobuttons.difficulty.response, radiobuttons.interest.response, slider.GTQ.response, slider.paid.response, radiobuttons.PlaylistPick.response, rock, sc, sccount, radiobuttons.gender.response, radiobuttons.handedness.response, radiobuttons.meds.response, radiobuttons.diag.response, radiobuttons.vision.response, radiobuttons.hearing.response, video.soundtest.currentitem, screenCred, filt1, filt2)
+
+assign(sprintf('NotEnjoy%s', i), partnotEnjoy) 
+}
+
+##Need to filter each file to only keep in blockcode SART
+```
+
+You can add options to executable code like this
+
+```{r}
+dfList1 <- rbind(Enjoy1, Enjoy2, Enjoy3, Enjoy4, Enjoy5, Enjoy6, Enjoy7, Enjoy8, Enjoy9, Enjoy10, Enjoy11, Enjoy12, Enjoy13, Enjoy14, Enjoy15, Enjoy16, Enjoy17, Enjoy18, Enjoy19, Enjoy20)
+#, Enjoy21, Enjoy22, Enjoy23, Enjoy24, Enjoy25, Enjoy26, Enjoy27
+
+dfList2 <- rbind(NotEnjoy1, NotEnjoy2, NotEnjoy3, NotEnjoy4, NotEnjoy5, NotEnjoy6, NotEnjoy7, NotEnjoy8, NotEnjoy9, NotEnjoy10, NotEnjoy11, NotEnjoy12, NotEnjoy13, NotEnjoy14, NotEnjoy15, NotEnjoy16, NotEnjoy17, NotEnjoy18, NotEnjoy19, NotEnjoy20, NotEnjoy21, NotEnjoy22, NotEnjoy23)
+
+
+test <- dfList2 %>% select(subject, RT)
+test <- na.omit(test)
+
+fviz_nbclust(test, kmeans, method = "wss")
+
+set.seed(123)
+km.res <- kmeans(test, 3, nstart = 25)
+print(km.res)
+
+
+dd <- cbind(test, cluster = km.res$cluster)
+head(dd)
+
+
+fviz_cluster(km.res, test, ellipse.type = "norm") 
+
+partPlot <- ggplot(data = dd, aes(x = cluster, y = RT, color = cluster)) +
+  geom_bar(stat = "summary", fun = "mean") 
+
+partPlot
+
+
+#When I do the k-means analysis, three groups emerge for the enjoy and not enjoy conditions.  It seems more pronounced for the enjoy group with the shortest RT being ~339 and longest being about ~488.  In the not enjoy group, the shortest RT was ~393 and the longest being ~418.  
+
+#######################################################################
+#Plots for each participants with different filters
+#######################################################################
+ListNames <- ls(pattern = "Enjoy[1,2,3,4,5,6,7,8,9]")
+
+for (i in 1:length(ListNames)) {
+dfList = mget(ls(pattern = "Enjoy[1,2,3,4,5,6,7,8,9]"))
+df = dfList[[i]]
+partPlot <- ggplot(data = df, aes(x = trialcount, y = latency, color = responsetype)) +
+  #geom_line() +
+  geom_point() +
+  geom_line() +
+  geom_smooth()
+
+assign(sprintf('plot_%s', ListNames[i]), partPlot)
+
+partPlot1 <- ggplot(data = df, aes(x = trialcount, y = latency, color = filt1)) +
+  #geom_line() +
+  geom_point() +
+  geom_line() +
+  geom_smooth()
+
+assign(sprintf('plotFilt1_%s', ListNames[i]), partPlot1)
+
+partPlot2 <- ggplot(data = df, aes(x = trialcount, y = latency, color = filt2)) +
+  #geom_line() +
+  geom_point() +
+  geom_line() +
+  geom_smooth()
+
+assign(sprintf('plotFilt2_%s', ListNames[i]), partPlot2)
+}
+
+partPlot <- ggplot(data = dd, aes(x = responsetype, y = latency, color = cluster)) +
+  #geom_line() +
+  geom_bar(stat = "summary", fun = "mean") 
+partPlot
+
+partPlot <- ggplot(data = dd, aes(x = cluster, y = latency, color = cluster)) +
+  geom_bar() 
+  # geom_point() + 
+  # geom_line()
+
+partPlot
+
+partPlot <- ggplot(data = dd, aes(x = trialcount, y = latency, color = cluster)) +
+  #geom_bar(stat = "summary", fun = "mean") 
+   geom_point() + 
+   geom_line()
+
+partPlot
+
+Enjoy1clust <- cbind(Enjoy1, cluster = km.res$cluster)
+
+trialtest <- Enjoy1clust %>% filter(cluster == 1)
+
+partPlot <- ggplot(data = dd, aes(x = trialcount, y = latency, color = responsetype)) +
+  #geom_bar(stat = "summary", fun = "mean") 
+    geom_point() +  
+    geom_smooth(method = "lm", alpha = .25, aes(fill = responsetype))
+
+partPlot
+
+
+
+
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).

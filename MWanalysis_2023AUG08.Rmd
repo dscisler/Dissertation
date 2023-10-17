@@ -28,6 +28,8 @@ library(ggplot2)
 library(hrbrthemes)
 library(PerformanceAnalytics)
 library(tools)
+library(stringr)
+library(factoextra)
 ```
 
 ```{r}
@@ -36,8 +38,8 @@ library(tools)
 file_names_listed_EXP1EnjoyRaw <- list.files(path = "C:/Users/Cisler/Desktop/Data/For Analysis/Exp1Enjoy/Raw", full.names = TRUE,
                                              pattern = "*.iqdat")
 
-file_names_listed_EXP1EnjoyRawsurvey <- list.files(path = "C:/Users/Cisler/Desktop/Data/For Analysis/Exp1Enjoy/Survey", full.names = TRUE,
-+                                              pattern = "*.iqdat")
+file_names_listed_EXP1Enjoysurvey <- list.files(path = "C:/Users/Cisler/Desktop/Data/For Analysis/Exp1Enjoy/Survey", full.names = TRUE,
+                                              pattern = "*.iqdat")
 
 filelistTab <- as.data.frame(file_names_listed_EXP1EnjoyRaw)
 filelistTab <- as.data.frame(basename(file_names_listed_EXP1EnjoyRaw))
@@ -46,6 +48,24 @@ filelistTab2 <- as.data.frame(filelistTab2)
 
 filelistTabsurv <- as.data.frame(basename(file_names_listed_EXP1EnjoyRawsurvey))
 filelistTabsurv2 <- str_sub(filelistTabsurv$`basename(file_names_listed_EXP1EnjoyRawsurvey)`, -39, -1)
+filelistTabsurv2 <- as.data.frame(filelistTabsurv2)
+filesneed <- filelistTab2[!filelistTab2$filelistTab2 %in% filelistTabsurv2$filelistTabsurv2, ]
+filesneed <- as.data.frame(filesneed)
+
+#Ex1 Not Enjoy
+file_names_listed_EXP1NotEnjoyRaw <- list.files(path = "C:/Users/Cisler/Desktop/Data/For Analysis/Exp1NotEnjoy/Raw", full.names = TRUE,
+                                             pattern = "*.iqdat")
+
+file_names_listed_EXP1NotEnjoysurvey <- list.files(path = "C:/Users/Cisler/Desktop/Data/For Analysis/Exp1NotEnjoy/Survey", full.names = TRUE,
+                                              pattern = "*.iqdat")
+
+filelistTab <- as.data.frame(file_names_listed_EXP1NotEnjoyRaw)
+filelistTab <- as.data.frame(basename(file_names_listed_EXP1NotEnjoyRaw))
+filelistTab2 <- str_sub(filelistTab$`basename(file_names_listed_EXP1NotEnjoyRaw)`, -39, -1)
+filelistTab2 <- as.data.frame(filelistTab2)
+
+filelistTabsurv <- as.data.frame(basename(file_names_listed_EXP1NotEnjoysurvey))
+filelistTabsurv2 <- str_sub(filelistTabsurv$`basename(file_names_listed_EXP1NotEnjoysurvey)`, -39, -1)
 filelistTabsurv2 <- as.data.frame(filelistTabsurv2)
 filesneed <- filelistTab2[!filelistTab2$filelistTab2 %in% filelistTabsurv2$filelistTabsurv2, ]
 filesneed <- as.data.frame(filesneed)
@@ -66,13 +86,13 @@ file_names_listed_EXP1notEnjoyRaw <- list.files(path = "C:/Users/Cisler/Desktop/
 
 
 ##Create new dataframe
-Analysis <- data.frame(matrix(ncol = 10, nrow = 0))
-Analysis2 <- data.frame(matrix(ncol = 10, nrow = 0))
+Analysis <- data.frame(matrix(ncol = 11, nrow = 0))
+Analysis2 <- data.frame(matrix(ncol = 11, nrow = 0))
 MWProbe1 <- data.frame(matrix(ncol = 5, nrow = 0))
 MWProbe2 <- data.frame(matrix(ncol = 5, nrow = 0))
 
-colnames(Analysis) <- c('subject', 'condition', 'acc_avg_go', 'rt_avg_go', 'acc_avg_nogo', 'hit_count', 'miss_count', 'fa_count', 'cr_count', 'playlistSel')
-colnames(Analysis2) <- c('subject', 'condition', 'acc_avg_go', 'rt_avg_go', 'acc_avg_nogo', 'hit_count', 'miss_count', 'fa_count', 'cr_count', 'playlistSel')
+colnames(Analysis) <- c('subject', 'condition', 'acc_avg_go', 'rt_avg_go', 'acc_avg_nogo', 'rt_avg_nogo', 'hit_count', 'miss_count', 'fa_count', 'cr_count', 'playlistSel')
+colnames(Analysis2) <- c('subject', 'condition', 'acc_avg_go', 'rt_avg_go', 'acc_avg_nogo', 'rt_avg_nogo', 'hit_count', 'miss_count', 'fa_count', 'cr_count', 'playlistSel')
 colnames(MWProbe1) <- c('subject', 'trialnum', 'trialcode', 'response', 'RespLog')
 colnames(MWProbe2) <- c('subject', 'trialnum', 'trialcode', 'response', 'RespLog')
 
@@ -118,6 +138,9 @@ for (i in 1:length(file_names_listed_EXP1EnjoyRaw)) {
   #I need to address this article in my intro.  Although I agree with their proposed sequential shift towards endogenous attention, I do not necessarily agree with their proposal of stage one, two, and three definitions for mind wandering.  I do not necessarily agree that stage 3 results in a feedback loop that leads to further degradation of the task performance.  Stages 1 and 2 can also be explained by external distractions.  What I do think is happening is that there is a "fuzzy" state that occurs before the mind wandering event (e.g. ppl stop attending to specifics of the stimuli).  This state is malleable but requires less effort to re-engage with the primary task, creating a situation where more resources for task performance.  However, if left unchecked, the DMN continues to become more activated and the moment that level of activation peaks above the DAN, that is when the mind wandering event occurs.  This is where that attentional switch from the primary task to an internal event (reading to thinking about their grocery list) happens.  The final stage is the consequence of the mind wandering event where the individual is now day dreaming, zoning out, or engaging in a different task that they find more important to them.
   #I do not think that SART is the appropriate task to use for mind wandering studies.  I believe that it requires tasks that are more complex such as task-switching paradigms or working memory tasks.
   #For this analysis I am going to filter out all trials that are 100ms and below as they are either products of the previous missed trial or is someone engaging in rapid button pushing.  I will keep ambiguous and valid trials as there is evidence provided by other research of speed/accuracy trade-offs.  It could be overtime ppl are increasing their response speed without realizing it.
+  #plot by subject ambiguous vs good for RT.  
+  #cluster analysis on ind datapoints per part.  ACC speed groupings
+  #The professor is in - book
   
   GoTrial <- New_part[New_part$trialcode == 'go',]
   GoTrial <- GoTrial %>% filter(latency > 100)
@@ -135,8 +158,15 @@ for (i in 1:length(file_names_listed_EXP1EnjoyRaw)) {
   test1 <- test[test$trialtype == 'Go',]
   test2 <- test[test$trialtype == 'NoGo',]
   
+  test3 <- procPart %>%
+     group_by(trialtype) %>%
+     filter(grepl("Go", trialtype)) %>%
+     summarise(Means = mean(RT, na.rm = TRUE))
  
-  Analysis[nrow(Analysis) + 1,] <- c(unique(procPart$subject), paste('enjoy'), test1$Means, mean(procPart$RT, na.rm = TRUE), test2$Means, sum(procPart$hit), sum(procPart$miss), sum(procPart$fa), sum(procPart$cr), playlist$playlistSel)
+  test4 <- test3[test3$trialtype == 'Go',]
+  test5 <- test3[test3$trialtype == 'NoGo',]
+  
+  Analysis[nrow(Analysis) + 1,] <- c(unique(procPart$subject), paste('enjoy'), test1$Means, test4$Means, test2$Means, test5$Means, sum(procPart$hit), sum(procPart$miss), sum(procPart$fa), sum(procPart$cr), playlist$playlistSel)
   MWProbe1 <- rbind(MWProbe1, probe_resp)
   
 }
@@ -242,7 +272,16 @@ for (i in 1:length(file_names_listed_EXP1notEnjoyRaw)) {
   
   test1 <- test[test$trialtype == 'Go',]
   test2 <- test[test$trialtype == 'NoGo',]
-  Analysis2[nrow(Analysis2) + 1,] <- c(unique(procPart$subject), paste('not enjoy'), test1$Means, mean(procPart$RT, na.rm = TRUE), test2$Means, sum(procPart$hit), sum(procPart$miss), sum(procPart$fa), sum(procPart$cr), playlist$playlistSel)
+  
+  test3 <- procPart %>%
+     group_by(trialtype) %>%
+     filter(grepl("Go", trialtype)) %>%
+     summarise(Means = mean(RT, na.rm = TRUE))
+ 
+  test4 <- test3[test3$trialtype == 'Go',]
+  test5 <- test3[test3$trialtype == 'NoGo',]
+  
+  Analysis2[nrow(Analysis2) + 1,] <- c(unique(procPart$subject), paste('not enjoy'), test1$Means, test4$Means, test2$Means, test5$Means, sum(procPart$hit), sum(procPart$miss), sum(procPart$fa), sum(procPart$cr), playlist$playlistSel)
   MWProbe2 <- rbind(MWProbe2, probe_resp)
   
 }
@@ -335,10 +374,78 @@ rm(Analysis, Analysis2, indices, indices2, MWProbe1, MWProbe2, New_part, New_par
 ```
 
 
-```{r processing exp2}
+```{r graphs of average RT by subject and condition}
+FullAnalysis <- as.data.frame(FullAnalysis)
+rt_average <- FullAnalysis %>% select(subject, condition, rt_avg_go)
+plot_rt_sub <- ggplot(rt_average, aes(x=factor(subject), y = rt_avg_go)) +
+  geom_bar(stat = "summary", fun = "mean")
+plot_rt_sub
+
+plot_rt_cond <- ggplot(rt_average, aes(x=factor(condition), y = rt_avg_go)) +
+  geom_bar(stat = "summary", fun = "mean")
+plot_rt_cond
+
+plot_rt_condnogo <- ggplot(rt_average, aes(x=condition, y = rt_avg_nogo)) +
+  geom_bar(stat = "summary", fun = "mean")
+plot_rt_condnogo
+
+acc_average <- FullAnalysis %>% select(subject, condition, acc_avg_nogo)
+plot_acc_sub <- ggplot(acc_average, aes(x=factor(subject), y = acc_avg_nogo)) +
+  geom_bar(stat = "summary", fun = "mean")
+plot_acc_sub
+
+plot_acc_cond <- ggplot(acc_average, aes(x=factor(condition), y = acc_avg_nogo)) +
+  geom_bar(stat = "summary", fun = "mean")
+plot_acc_cond
+
+FullAnalysis$logPaidResponse <- log10(FullAnalysis$paid_response)
+
+plot_paid_cond <- ggplot(FullAnalysis, aes(x=factor(condition), y = logPaidResponse)) +
+  geom_bar(stat = "summary", fun = "mean")
+plot_paid_cond
+
+plot_interest_cond <- ggplot(FullAnalysis, aes(x=factor(condition), y = interest_response_num)) +
+  geom_bar(stat = "summary", fun = "mean")
+plot_interest_cond
+
+
+plot_difficult_cond <- ggplot(FullAnalysis, aes(x=factor(condition), y = difficulty_response_num)) +
+  geom_bar(stat = "summary", fun = "mean")
+plot_difficult_cond
+
+plot_frustration_cond <- ggplot(FullAnalysis, aes(x=factor(condition), y = frustration_response)) +
+  geom_bar(stat = "summary", fun = "mean")
+plot_frustration_cond
+
+
+plot_effort_cond <- ggplot(FullAnalysis, aes(x=factor(condition), y = effort_response)) +
+  geom_bar(stat = "summary", fun = "mean")
+plot_effort_cond
+
+plot_GTQ_cond <- ggplot(FullAnalysis, aes(x=factor(condition), y = GTQ_response)) +
+  geom_bar(stat = "summary", fun = "mean")
+plot_GTQ_cond
+
+plot_dprime_cond <- ggplot(FullAnalysis, aes(x=factor(condition), y = dprime)) +
+  geom_bar(stat = "summary", fun = "mean")
+plot_dprime_cond
 
 ```
 
+
+```{r graphs of RT by subject}
+FullAnalysis <- as.data.frame(FullAnalysis)
+rt_average <- FullAnalysis %>% select(subject, condition, rt_avg_go)
+plot_rt_sub <- ggplot(rt_average, aes(x=factor(subject), y = rt_avg_go)) +
+  geom_bar(stat = "summary", fun = "mean")
+plot_rt_sub
+
+plot_rt_cond <- ggplot(rt_average, aes(x=factor(condition), y = rt_avg_go)) +
+  geom_bar(stat = "summary", fun = "mean")
+plot_rt_cond
+
+
+```
 
 ```{r processing exp3}
 #==========================================================================
@@ -374,6 +481,11 @@ for (i in 1:length(file_names_listed_EXP3EnjoyTSRaw)) {
   playlist <- playlist %>% select(playlistSel)
   New_part <- New_part[!grepl("Music", New_part$trialcode),]
   New_part <- New_part[!grepl("PlaylistPick", New_part$trialcode),]
+  
+  
+  #Notes:  I'm seeing that the average RT is around 700ms from various papers.  Of course this varies based on a number of reasons. For data processing, I am going to exclude trials where responses occur less than 500ms RT.  
+  
+  New_part <- New_part %>% filter(latency > 500)
   
   #congruent: 1 = target symbol and distractor symbol share the same key
   #incongruent: 2 = target symbol and distractor symbol require opposite keys
@@ -450,6 +562,9 @@ for (j in 1:length(file_names_listed_EXP1EnjoySurvey)) {
   New_part_survey$subject <- as.character(New_part_survey$subject)
 }
 
+##Append Survey Data to Task Data
+TSAnalysis <- left_join(TSAnalysis, New_part_survey, by = 'subject')
+
 #Processing TS for Not Enjoy Condition
 for (i in 1:length(file_names_listed_EXP3notEnjoyTSRaw)) {
   
@@ -467,6 +582,7 @@ for (i in 1:length(file_names_listed_EXP3notEnjoyTSRaw)) {
   New_part <- New_part[!grepl("Music", New_part$trialcode),]
   New_part <- New_part[!grepl("PlaylistPick", New_part$trialcode),]
   
+  New_part <- New_part %>% filter(latency > 500)
   #congruent: 1 = target symbol and distractor symbol share the same key
   #incongruent: 2 = target symbol and distractor symbol require opposite keys
   switchtrials <- New_part %>%
@@ -511,10 +627,43 @@ for (i in 1:length(file_names_listed_EXP3notEnjoyTSRaw)) {
   
   
 }
+
+#####Cleaning and Processing Not Enjoy Survey Responses#####
+##Create blank dataframe
+New_part_survey_notEnjoy <- data.frame(matrix(ncol = 21, nrow = 0))
+colnames(New_part_survey_notEnjoy) <- c('subject', 'mentaldemand_response', 'mentaldemand_latency', 'physicaldemand_response', 'physicaldemand_latency', 'temporaldemand_response', 'temporaldemand_latency', 'performance_response', 'performance_latency', 'effort_response', 'effort_latency', 'frustration_response', 'frustration_latency', 'difficulty_response',  'difficulty_latency', 'GTQ_response', 'GTQ_latency', 'interest_response', 'interest_latency', 'paid_response', 'paid_latency')
+
+##Create list of file names in Enjoy Survey Directory
+file_names_listed_EXP1NotEnjoySurvey <- list.files(path = "C:/Users/Cisler/Desktop/Data/For Analysis/Exp1NotEnjoy/Survey", full.names = TRUE,
+                                                pattern = "*.iqdat")
+
+
+##Auto Process Enjoy Survey Data
+for (j in 1:length(file_names_listed_EXP1NotEnjoySurvey)) {
+  part_survey <- read.table(file_names_listed_EXP1NotEnjoySurvey[j],
+                            sep='\t', header=TRUE)
+  
+  #Removes unwanted columns from survey data
+  # part_survey <- subset(part_survey, select = c(subject, mentaldemand_response, physicaldemand_response, temporaldemand_response,
+  #                                               performance_response, effort_response, frustration_response, difficulty_response,
+  #                                               GTQ_response, interest_response, paid_response))
+  part_survey <- subset(part_survey, select = -c(date, time, group, session, build)) 
+  
+  #Appends new row to created dataframe with each processed Survey response
+  # New_part_survey[nrow(New_part_survey) + 1,] <- c(part_survey$subject, part_survey$mentaldemand_response, part_survey$physicaldemand_response, part_survey$temporaldemand_response,
+  #                                                  part_survey$performance_response, part_survey$effort_response, part_survey$frustration_response, part_survey$difficulty_response,
+  #                                                  part_survey$GTQ_response, part_survey$interest_response, part_survey$paid_response )
+  
+  New_part_survey_notEnjoy[nrow(New_part_survey_notEnjoy) + 1,] <- part_survey
+  New_part_survey_notEnjoy$subject <- as.character(New_part_survey_notEnjoy$subject)
+}
+
+##Append Survey Data to Task Data
+TSAnalysis2 <- left_join(TSAnalysis2, New_part_survey_notEnjoy, by = 'subject')
+
 FullTSAnalysis <- rbind(TSAnalysis, TSAnalysis2)
 
 
-FullTSAnalysis %>% t_test(incongruent_switch_meanACC ~ condition)
 
 ```
 
