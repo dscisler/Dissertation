@@ -670,5 +670,8 @@ FullTSAnalysis <- rbind(TSAnalysis, TSAnalysis2)
 
 ```{r example for new sections}
 #Need to design preprocessing steps
+#Long structure, Subj variable firs col, 2nd col is condition they are in, and 3rd all studies 4th(group which qs they will address), 5th variable, 6th value.  Design a super long dataset with all the studies, and each filter value. 
+
+#Subj, Cond, Study, Ques, ACC, RT, Latencies, Filter value, MW probe, Survey Resps
 ```
 
