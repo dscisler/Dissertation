@@ -187,11 +187,11 @@ for (j in 1:length(file_names_listed_EXP1NotEnjoySurvey)) {
 AnalysisExp1NotEnjoy$subject <- as.character(AnalysisExp1NotEnjoy$subject)
 AnalysisExp1NotEnjoy <- full_join(AnalysisExp1NotEnjoy, New_part_survey, by = 'subject')
 
-AnalysisFull <- rbind(AnalysisExp1enjoy, AnalysisExp1NotEnjoy)
+#AnalysisFull <- rbind(AnalysisExp1enjoy, AnalysisExp1NotEnjoy)
 ```
 
 
-```{r processing exp2}
+```{r processing exp2 enjoy cond}
 #This one is going to be a little bit different.  I need to create a blank dataframe to add in the mind wandering probe then rbind it to the raw dataset.
 #trialcode is probe, trialtype is probe, digit is NA, response is response, correct is 1, RT is NA, latency is latency, latencytype is NA
 #Follow-up page: trialcode is probe2, trialtype is 
@@ -200,10 +200,6 @@ AnalysisFull <- rbind(AnalysisExp1enjoy, AnalysisExp1NotEnjoy)
 datalist = list()
 file_names_listed_EXP2EnjoyRaw <- list.files(path = "C:/Users/Cisler/Desktop/Data/For Analysis/Exp2Enjoy/Raw", full.names = TRUE,
                                              pattern = "*.iqdat")
-
-file_names_listed_EXP2notEnjoyRaw <- list.files(path = "C:/Users/Cisler/Desktop/Data/For Analysis/Exp2NotEnjoy/Raw", full.names = TRUE,
-                                                pattern = "*.iqdat")
-
 
 for (i in 1:length(file_names_listed_EXP2EnjoyRaw)) {
   
@@ -303,3 +299,114 @@ Exp2BindEnjoyArranged <- full_join(Exp2BindEnjoyArranged, New_part_survey, by = 
 
 ```
 
+
+```{r processing exp2 not enjoy cond}
+#This one is going to be a little bit different.  I need to create a blank dataframe to add in the mind wandering probe then rbind it to the raw dataset.
+#trialcode is probe, trialtype is probe, digit is NA, response is response, correct is 1, RT is NA, latency is latency, latencytype is NA
+#Follow-up page: trialcode is probe2, trialtype is 
+
+##Creates list of file names
+datalist = list()
+file_names_listed_EXP2notEnjoyRaw <- list.files(path = "C:/Users/Cisler/Desktop/Data/For Analysis/Exp2NotEnjoy/Raw", full.names = TRUE,
+                                                pattern = "*.iqdat")
+
+
+for (i in 1:length(file_names_listed_EXP2notEnjoyRaw)) {
+  
+  ####Loading and processing data####
+  #part <- read_xlsx(file_names_listed_EXP1NotEnjoy[i])
+  part <- read.table(file_names_listed_EXP2notEnjoyRaw[i],
+                     sep='\t', header=TRUE)
+  
+  part <- part %>% select(-one_of('MTnum')) %>% suppressWarnings()
+  ##Remove Practice Trials##
+  New_part <- part[!grepl("practice", part$trialcode),]
+  playlist <- part[grepl("PlaylistPick", part$trialcode),]
+  playlist$playlistSel <- playlist$response #works for current version of R
+  playlist <- playlist %>% select(playlistSel)
+  
+  New_part <- New_part[grepl("SART", New_part$blockcode), ]
+  New_part$playlist <- playlist$playlistSel
+  New_part$exp <- 'exp2'
+  New_part$cond <- 'enjoy'
+  New_part$filt <- 'filter1'
+  
+  New_part1 <- New_part
+  New_part1$responsetype <- ifelse(New_part1$trialtype == 'Go' & New_part1$latency >= 300 & New_part1$response == 57, 'Go Success', ifelse(New_part1$trialtype == 'Go' & New_part1$latency < 200, 'Go Anticipatory', ifelse(New_part1$trialtype == 'NoGo' & New_part1$response == 57, 'NoGo Failure', ifelse(New_part1$trialtype == 'NoGo' & New_part1$response == 0, 'NoGo Success',ifelse(New_part1$trialtype == 'Go' & New_part1$response == 0, 'Omission', 'Go Ambiguous')))))
+  New_part1$filt <- 'filter2'
+  
+  New_part2 <- New_part1
+  New_part2$responsetype <- ifelse(New_part2$trialtype == 'Go' & New_part2$latency >= 400 & New_part2$response == 57, 'Go Success', ifelse(New_part2$trialtype == 'Go' & New_part2$latency < 300, 'Go Anticipatory', ifelse(New_part2$trialtype == 'NoGo' & New_part2$response == 57, 'NoGo Failure', ifelse(New_part2$trialtype == 'NoGo' & New_part2$response == 0, 'NoGo Success',ifelse(New_part2$trialtype == 'Go' & New_part2$response == 0, 'Omission', 'Go Ambiguous')))))
+  New_part2$filt <- 'filter3'
+  
+  New_partAll <- rbind(New_part, New_part1, New_part2)
+  datalist[[i]] <- New_partAll
+  
+  #Analysis[nrow(Analysis) + length(New_partAll$subject),] <- rbind(New_partAll)
+  
+  }
+AnalysisExp2NotEnjoy <- bind_rows(datalist)
+
+#####Cleaning and Processing NotEnjoy Survey Responses#####
+##Create blank dataframe
+New_part_survey <- data.frame(matrix(ncol = 11, nrow = 0))
+colnames(New_part_survey) <- c('subject', 'mentaldemand_response', 'physicaldemand_response', 'temporaldemand_response', 'performance_response', 'effort_response', 'frustration_response', 'difficulty_response',  'GTQ_response', 'interest_response', 'paid_response')
+
+##Create list of file names in NotEnjoy Survey Directory
+file_names_listed_EXP2NotEnjoySurvey <- list.files(path = "C:/Users/Cisler/Desktop/Data/For Analysis/Exp2NotEnjoy/Survey", full.names = TRUE,
+                                                pattern = "*.iqdat")
+
+mwDatlist <- list()
+##Auto Process NotEnjoy Survey Data
+for (j in 1:length(file_names_listed_EXP2NotEnjoySurvey)) {
+  Analysisexp2 <- data.frame(matrix(ncol = 50, nrow = 1))
+
+colnames(Analysisexp2) <- c("build", "computer.platform", "date", "time", "subject", "group", "sessionid", "blockcode", "blocknum", "trialcode", "trialnum", "trialcount", "digitpresentationtime", "maskpresentationtime", "trialtype", "digit", "fontsize", "response", "correct", "RT", "latency", "latencytype", "responsetype", "count_anticipatory", "correctsuppressions", "incorrectsuppressions", "count_NoGo", "count_Go", "count_validgo", "countprobes", "radiobuttons.difficulty.response", "radiobuttons.interest.response", "slider.GTQ.response", "slider.paid.response", "radiobuttons.PlaylistPick.response", "rock", "sc", "sccount", "radiobuttons.gender.response", "radiobuttons.handedness.response", "radiobuttons.meds.response", "radiobuttons.diag.response", "radiobuttons.vision.response", "radiobuttons.hearing.response", "video.soundtest.currentitem", "screenCred",  "playlist",  "exp", "cond", "filt")
+
+  
+  part_survey <- read.table(file_names_listed_EXP2NotEnjoySurvey[j],
+                            sep='\t', header=TRUE)
+  mw_resp <- subset(part_survey, select = c(date, time, group, subject, session, build, probe_response, probe_latency, probe2_response, probe2_latency, MWcatch_response, MWcatch_latency, MWonTask_response, MWonTask_latency, MWother_response, MWother_latency))
+  gatherCol <- c('probe_response', 'probe2_response', 'MWcatch_response', 'MWonTask_response', 'MWother_response')
+  #gatherCol2 <- c('probe_latency', 'probe2_latency', 'MWcatch_latency', 'MWonTask_latency', 'MWother_latency')
+  mw_respLong <- gather(mw_resp, trialcode, response, gatherCol)
+  mw_respLong$latency <- ifelse(mw_respLong$trialcode == 'probe_response', mw_respLong$probe_latency, mw_respLong$probe2_latency)
+  
+  #This copies the data from mw_respLong over to Analysisexp2 dataframe.  Trial Count will be set to 1201, so after I rbind it to the dataset with the raw data, I can arrange it by subject number and trial count.  
+  Analysisexp2[nrow(Analysisexp2) + length(mw_respLong$subject) -1, ] <- Analysisexp2
+  Analysisexp2$subject <- ifelse(is.na(Analysisexp2$subject), mw_respLong$subject,NA)
+  Analysisexp2$group <- ifelse(is.na(Analysisexp2$group), mw_respLong$group,NA)
+  Analysisexp2$trialcode <- ifelse(is.na(Analysisexp2$trialcode), mw_respLong$trialcode,NA)
+  Analysisexp2$response <- ifelse(is.na(Analysisexp2$response), mw_respLong$response,NA)
+  Analysisexp2$latency <- ifelse(is.na(Analysisexp2$latency), mw_respLong$latency,NA)
+  Analysisexp2$trialcount <- ifelse(is.na(Analysisexp2$trialcount), 1201,NA)
+  
+  mwDatlist[[j]] <- Analysisexp2
+    #Removes unwanted columns from survey data
+  part_survey <- subset(part_survey, select = c(subject, mentaldemand_response, physicaldemand_response, temporaldemand_response,
+                                                performance_response, effort_response, frustration_response, difficulty_response,
+                                                GTQ_response, interest_response, paid_response))
+  
+  #Appends new row to created dataframe with each processed Survey response
+  New_part_survey[nrow(New_part_survey) + 1,] <- c(part_survey$subject, part_survey$mentaldemand_response, part_survey$physicaldemand_response, part_survey$temporaldemand_response,
+                                                   part_survey$performance_response, part_survey$effort_response, part_survey$frustration_response, part_survey$difficulty_response,
+                                                   part_survey$GTQ_response, part_survey$interest_response, part_survey$paid_response )
+
+    
+}
+MWpostprobeNotEnjoy <- bind_rows(mwDatlist)
+MWpostprobeNotEnjoy$exp <- 'exp2'
+MWpostprobeNotEnjoy$cond <- 'NotEnjoy'
+
+Exp2BindNotEnjoy <- rbind(AnalysisExp2NotEnjoy, MWpostprobeNotEnjoy)
+Exp2BindNotEnjoyArranged <- Exp2BindNotEnjoy %>% arrange(subject)
+
+#75408185
+
+##Append Survey Data to Task Data
+Exp2BindNotEnjoyArranged$subject <- as.character(Exp2BindNotEnjoyArranged$subject)
+Exp2BindNotEnjoyArranged <- full_join(Exp2BindNotEnjoyArranged, New_part_survey, by = 'subject')
+
+
+AnalysisFull <- rbind(AnalysisExp1enjoy, AnalysisExp1NotEnjoy, Exp2BindEnjoyArranged, Exp2BindNotEnjoyArranged)
+```
