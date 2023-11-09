@@ -420,7 +420,7 @@ Exp2BindNotEnjoyArranged <- full_join(Exp2BindNotEnjoyArranged, New_part_survey,
 
 ##Creates list of file names
 datalist = list()
-file_names_listed_Exp3EnjoyRaw <- list.files(path = "C:/Users/Cisler/Desktop/Data/For Analysis/Exp3Enjoy/Raw", full.names = TRUE,
+file_names_listed_Exp3EnjoyRaw <- list.files(path = "C:/Users/Cisler/Desktop/Data/For Analysis/Exp3Enjoy/SART/Raw", full.names = TRUE,
                                              pattern = "*.iqdat")
 
 for (i in 1:length(file_names_listed_Exp3EnjoyRaw)) {
@@ -465,7 +465,7 @@ New_part_survey <- data.frame(matrix(ncol = 11, nrow = 0))
 colnames(New_part_survey) <- c('subject', 'mentaldemand_response', 'physicaldemand_response', 'temporaldemand_response', 'performance_response', 'effort_response', 'frustration_response', 'difficulty_response',  'GTQ_response', 'interest_response', 'paid_response')
 
 ##Create list of file names in Enjoy Survey Directory
-file_names_listed_Exp3EnjoySurvey <- list.files(path = "C:/Users/Cisler/Desktop/Data/For Analysis/Exp3Enjoy/Survey", full.names = TRUE,
+file_names_listed_Exp3EnjoySurvey <- list.files(path = "C:/Users/Cisler/Desktop/Data/For Analysis/Exp3Enjoy/SART/Survey", full.names = TRUE,
                                                 pattern = "*.iqdat")
 
 mwDatlist <- list()
@@ -529,7 +529,7 @@ Exp3BindEnjoyArranged <- full_join(Exp3BindEnjoyArranged, New_part_survey, by = 
 
 ##Creates list of file names
 datalist = list()
-file_names_listed_Exp3notEnjoyRaw <- list.files(path = "C:/Users/Cisler/Desktop/Data/For Analysis/Exp3NotEnjoy/Raw", full.names = TRUE,
+file_names_listed_Exp3notEnjoyRaw <- list.files(path = "C:/Users/Cisler/Desktop/Data/For Analysis/Exp3NotEnjoy/SART/Raw", full.names = TRUE,
                                                 pattern = "*.iqdat")
 
 
@@ -575,7 +575,7 @@ New_part_survey <- data.frame(matrix(ncol = 11, nrow = 0))
 colnames(New_part_survey) <- c('subject', 'mentaldemand_response', 'physicaldemand_response', 'temporaldemand_response', 'performance_response', 'effort_response', 'frustration_response', 'difficulty_response',  'GTQ_response', 'interest_response', 'paid_response')
 
 ##Create list of file names in NotEnjoy Survey Directory
-file_names_listed_Exp3NotEnjoySurvey <- list.files(path = "C:/Users/Cisler/Desktop/Data/For Analysis/Exp3NotEnjoy/Survey", full.names = TRUE,
+file_names_listed_Exp3NotEnjoySurvey <- list.files(path = "C:/Users/Cisler/Desktop/Data/For Analysis/Exp3NotEnjoy/SART/Survey", full.names = TRUE,
                                                 pattern = "*.iqdat")
 
 mwDatlist <- list()
