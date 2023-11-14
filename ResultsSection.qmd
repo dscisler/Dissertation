@@ -1,0 +1,287 @@
+---
+title: "Results Section"
+format: docx
+editor: visual
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r libraries}
+library(readr)
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(rstatix) #need to update to the latest version of r
+library(psycho)
+library(ggplot2)
+library(hrbrthemes)
+library(PerformanceAnalytics)
+library(tools)
+library(stringr)
+library(factoextra)
+library(ISLR)
+library(tidyverse)
+library(Rfast)
+library(MASS)
+```
+
+You can add options to executable code like this
+
+```{r dataset to load}
+#load in dataset
+AnalysisFulltest <- read.csv('C:/Users/Cisler/Desktop/Data/FullDataset.csv')
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
+
+```{r Analysis of Probe responses}
+#Filters data for experiments 1 and 2
+ProbeRespons <- AnalysisFull %>% filter(exp != 'exp3')
+
+#Filters code for probe responses only
+ProbeRespons <- ProbeRespons %>% filter(grepl('probe', trialcode))
+
+#Filter to exclude probe2 responses
+ProbeRespons <- ProbeRespons %>% filter(!grepl('probe2', trialcode))
+
+#Filter to include only one set of responses
+ProbeRespons$filt <- ProbeRespons$filt %>% replace_na('filter1')
+ProbeRespons <- ProbeRespons %>% filter(filt == 'filter1')
+
+#
+ProbeRespons %>% group_by(exp) %>% count(response)
+
+con1 <- table(ProbeRespons$exp, ProbeRespons$response)
+con1
+
+mosaicplot(con1)
+
+chisq.test(con1)
+
+con2 <- prop.table(con1, margin = 1)
+con2
+
+mosaicplot(con2)
+
+
+exp1tab <- test3 %>% filter(exp == 'exp1')
+exp2tab <- test3 %>% filter(exp == 'exp2')
+con3 <- xtabs(n ~ cond+response, data = exp1tab)
+con3
+
+Exp1prop <- prop.table(con3, margin = 1)
+Exp1prop
+mosaicplot(Exp1prop)
+
+con4 <- xtabs(n ~ cond+response, data = exp2tab)
+con4
+
+
+Exp2prop <- prop.table(con4, margin = 1)
+Exp2prop
+mosaicplot(Exp2prop)
+```
+
+The mind wandering probe all participants saw was; "Think about the task you just performed. Were there any moments you found yourself mind wandering?"
+
+Proportion of responses show that participants are more likely to respond to having mind wandered when asked post task compared to during the task.
+
+When participants are interrupted during the task and asked about their mind wandering, they are almost equally likely to respond with either yes or no. When broken down by enjoyment condition, a slightly higher proportion of those assigned to the enjoyment condition who experienced the interrupting probes responded with no to mind wandering while a slightly higher proportion assigned to the non-enjoyment condition responded with yes to mind wandering.
+
+However, a higher proportion of participants who experienced the probe only once post task responded yes to having mind wandered, regardless of the enjoyment condition they were assigned to.
+
+Differences could be due to how participants conceptualized the question. Those asked to retrospectively assess if they have ever mind wandered are likely considering if their attention ever left the task over the whole 45 minute period, whereas those asked during the task if they are mind wandering are only considering their attentional state over a few trials. When probes are introduced can affect the proportion of "yes" responses from participants in their assessment of whether or not they were mind wandering.
+
+It is possible that receiving interrupting probes is accidentally training participants to differentiate between mind wandering and external distractions. The next part of this analysis needs to compare their responses to their perception of the amount of time they spent mind wandering, on task, or on something else.
+
+```{r Analysis of percentage of time MW vs On Task vs Distracted}
+CatchTrials <- AnalysisFull %>% filter(exp != 'exp3')
+
+#Filter to exclude probe responses
+CatchTrials <- CatchTrials %>% filter(!grepl('probe', trialcode))
+CatchTrials <- CatchTrials %>% filter(!grepl('go', trialcode))
+
+CatchTrials$filt <- CatchTrials$filt %>% replace_na('filter1')
+
+
+CatchTrials <- CatchTrials %>% filter(filt == 'filter1')
+
+##amount of time MW
+MWcatch <- CatchTrials %>% filter(trialcode == 'MWcatch')
+MWcatchavg <- MWcatch 
+
+summarize(group_by(MWcatch$subject), average_MWresp = mean(MWcatch$response, na.rm = TRUE))
+
+MWcatchavg <- MWcatch %>% group_by(subject,cond,exp) %>% summarise(average_MWresp = mean(response))
+
+MWcatchexp2 <- CatchTrials %>% filter(trialcode == 'MWcatch_response')
+MWcatchexp2 <- MWcatchexp2 %>% dplyr::select(c('subject', 'cond', 'exp', 'response'))
+
+MWcatchexp2 <- MWcatchexp2 %>% 
+  dplyr::rename("average_MWresp" = "response")
+MWcatchexp2$average_MWresp <- as.numeric(MWcatchexp2$average_MWresp)
+
+MWcatchFull <- rbind(MWcatchavg, MWcatchexp2)
+
+MWcatchFull <- na.omit(MWcatchFull)
+MWcatchFull$expCond <- ifelse(MWcatchFull$cond == 'enjoy' & MWcatchFull$exp == 'exp1', "exp1+enjoy", 
+                              ifelse(MWcatchFull$cond == 'enjoy' & MWcatchFull$exp == 'exp2', "exp2+enjoy",
+                                     ifelse(MWcatchFull$cond == 'NotEnjoy' & MWcatchFull$exp == 'exp1', "exp1+NotEnjoy",
+                                            ifelse(MWcatchFull$cond == 'NotEnjoy' & MWcatchFull$exp == 'exp2', "exp2+NotEnjoy", "CHECK"))))
+
+MWcatchPlot <- ggplot(data = MWcatchFull, aes(x = expCond, y = average_MWresp)) +
+  #geom_line() +
+  geom_bar(stat = "summary", fun = "mean")
+MWcatchPlot
+
+t.test(MWcatchFull$average_MWresp ~ MWcatchFull$exp)
+res_aov <- aov(MWcatchFull$average_MWresp ~ MWcatchFull$exp*MWcatchFull$cond)
+res_aov
+hist(res_aov$residuals)
+shapiro.test(res_aov$residuals)
+#Not normally distributed
+
+par(mfrow = c(1, 2)) # combine plots
+
+# 1. Homogeneity of variances
+plot(res_aov, which = 3)
+
+# 2. Normality
+plot(res_aov, which = 2)
+
+
+boxplot(average_MWresp ~ exp*cond,
+        data = MWcatchFull
+)
+
+leveneTest(average_MWresp ~ exp*cond,
+           data = MWcatchFull)
+
+summary(res_aov)
+#No significance
+
+
+##Amount of time on task
+
+onTaskcatch <- CatchTrials %>% filter(trialcode == 'MWonTask')
+onTaskcatch$response <- as.numeric(onTaskcatch$response)
+
+onTaskcatchavg <- onTaskcatch 
+
+onTaskcatchavg <- onTaskcatch %>% group_by(subject,cond,exp) %>% summarise(average_OnTaskresp = mean(response))
+
+onTaskcatchexp2 <- CatchTrials %>% filter(trialcode == 'MWonTask_response')
+onTaskcatchexp2 <- onTaskcatchexp2 %>% dplyr::select(c('subject', 'cond', 'exp', 'response'))
+
+onTaskcatchexp2 <- onTaskcatchexp2 %>% 
+  dplyr::rename("average_OnTaskresp" = "response")
+onTaskcatchexp2$average_OnTaskresp <- as.numeric(onTaskcatchexp2$average_OnTaskresp)
+
+onTaskcatchFull <- rbind(onTaskcatchavg, onTaskcatchexp2)
+
+onTaskcatchFull <- na.omit(onTaskcatchFull)
+onTaskcatchFull$expCond <- ifelse(onTaskcatchFull$cond == 'enjoy' & onTaskcatchFull$exp == 'exp1', "exp1+enjoy", 
+                              ifelse(onTaskcatchFull$cond == 'enjoy' & onTaskcatchFull$exp == 'exp2', "exp2+enjoy",
+                                     ifelse(onTaskcatchFull$cond == 'NotEnjoy' & onTaskcatchFull$exp == 'exp1', "exp1+NotEnjoy",
+                                            ifelse(onTaskcatchFull$cond == 'NotEnjoy' & onTaskcatchFull$exp == 'exp2', "exp2+NotEnjoy", "CHECK"))))
+
+onTaskcatchPlot <- ggplot(data = onTaskcatchFull, aes(x = expCond, y = average_OnTaskresp)) +
+  #geom_line() +
+  geom_bar(stat = "summary", fun = "mean")
+onTaskcatchPlot
+
+t.test(onTaskcatchFull$average_OnTaskresp ~ onTaskcatchFull$exp)
+res_aov <- aov(onTaskcatchFull$average_OnTaskresp ~ onTaskcatchFull$exp*onTaskcatchFull$cond)
+res_aov
+hist(res_aov$residuals)
+shapiro.test(res_aov$residuals)
+#Not normally distributed
+
+par(mfrow = c(1, 2)) # combine plots
+
+# 1. Homogeneity of variances
+plot(res_aov, which = 3)
+
+# 2. Normality
+plot(res_aov, which = 2)
+
+
+boxplot(average_OnTaskresp ~ exp*cond,
+        data = onTaskcatchFull
+)
+
+leveneTest(average_OnTaskresp ~ exp*cond,
+           data = onTaskcatchFull)
+
+summary(res_aov)
+
+
+
+##Amount of time distracted by something else
+
+othercatch <- CatchTrials %>% filter(trialcode == 'MWother')
+othercatch$response <- as.numeric(othercatch$response)
+
+othercatchavg <- othercatch 
+
+othercatchavg <- othercatch %>% group_by(subject,cond,exp) %>% summarise(average_otherresp = mean(response))
+
+othercatchexp2 <- CatchTrials %>% filter(trialcode == 'MWother_response')
+othercatchexp2 <- othercatchexp2 %>% dplyr::select(c('subject', 'cond', 'exp', 'response'))
+
+othercatchexp2 <- othercatchexp2 %>% 
+  dplyr::rename("average_otherresp" = "response")
+othercatchexp2$average_otherresp <- as.numeric(othercatchexp2$average_otherresp)
+
+othercatchFull <- rbind(othercatchavg, othercatchexp2)
+
+othercatchFull <- na.omit(othercatchFull)
+othercatchFull$expCond <- ifelse(othercatchFull$cond == 'enjoy' & othercatchFull$exp == 'exp1', "exp1+enjoy", 
+                                  ifelse(othercatchFull$cond == 'enjoy' & othercatchFull$exp == 'exp2', "exp2+enjoy",
+                                         ifelse(othercatchFull$cond == 'NotEnjoy' & othercatchFull$exp == 'exp1', "exp1+NotEnjoy",
+                                                ifelse(othercatchFull$cond == 'NotEnjoy' & othercatchFull$exp == 'exp2', "exp2+NotEnjoy", "CHECK"))))
+
+othercatchPlot <- ggplot(data = othercatchFull, aes(x = expCond, y = average_otherresp)) +
+  #geom_line() +
+  geom_bar(stat = "summary", fun = "mean")
+othercatchPlot
+
+t.test(othercatchFull$average_otherresp ~ othercatchFull$exp)
+res_aov <- aov(othercatchFull$average_otherresp ~ othercatchFull$exp*othercatchFull$cond)
+res_aov
+hist(res_aov$residuals)
+shapiro.test(res_aov$residuals)
+#Not normally distributed
+
+par(mfrow = c(1, 2)) # combine plots
+
+# 1. Homogeneity of variances
+plot(res_aov, which = 3)
+
+# 2. Normality
+plot(res_aov, which = 2)
+
+
+boxplot(average_otherresp ~ exp*cond,
+        data = othercatchFull
+)
+
+leveneTest(average_otherresp ~ exp*cond,
+           data = othercatchFull)
+
+summary(res_aov)
+
+
+figureCatchTrials <- ggpubr::ggarrange(MWcatchPlot, onTaskcatchPlot, othercatchPlot,
+                    labels = c("A", "B", "C"),
+                    ncol = 2, nrow = 2)
+figureCatchTrials
+```
+
+Those in post-task assessment had a tendency to give higher markings compared to those in the interrupting probe conditions, for the questions regarding the percentage of time spent mind wandering, on task, or distracted by something else.

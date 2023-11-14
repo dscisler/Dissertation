@@ -631,4 +631,7 @@ Exp3BindNotEnjoyArranged <- full_join(Exp3BindNotEnjoyArranged, New_part_survey,
 
 
 AnalysisFull <- rbind(AnalysisExp1enjoy, AnalysisExp1NotEnjoy, Exp2BindEnjoyArranged, Exp2BindNotEnjoyArranged, Exp3BindEnjoyArranged, Exp3BindNotEnjoyArranged)
+
+write_rds(AnalysisFull, 'C:/Users/Cisler/Desktop/Data/FullDataset.rds')
+write.csv(AnalysisFull, 'C:/Users/Cisler/Desktop/Data/FullDataset.csv')
 ```
