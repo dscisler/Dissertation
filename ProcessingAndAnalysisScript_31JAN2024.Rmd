@@ -1123,6 +1123,7 @@ resultsTS <- sapply(split(TSMindWander, TSMindWander$subject), process_subject)
 # Display the results
 result_dataTS <- data.frame(subject = names(resultsTS), MWassignment = resultsTS)
 print(result_dataTS)
+result_dataTS %>% count(MWassignment)
 result_dataTS$subject <- as.integer(result_dataTS$subject)
 
 
@@ -1136,9 +1137,13 @@ MWGroup_counts <- MWTS_groupings %>%
 
 summary(lm(latency~MWassignment*congruence*switch, data = Experiment3TS))
 summary(lm(latency~congruence*switch, data = Experiment3TS))
+summary(lm(latency~MWassignment*switch, data = Experiment3TS))
+summary(lm(latency~MWassignment, data = Experiment3TS))
 
 summary(lm(correct~MWassignment*congruence*switch, data = Experiment3TS))
 summary(lm(correct~congruence*switch, data = Experiment3TS))
+summary(lm(correct~MWassignment*congruence, data = Experiment3TS))
+summary(lm(correct~MWassignment, data = Experiment3TS))
 
 summary(lm(paid_response~MWassignment, data = Experiment3TS))
 
@@ -1171,6 +1176,216 @@ PaidbyMWExp3TS <- ggplot(MWTS_groupings, aes(x = MWassignment, y = paid_response
 # Print the plot
 PaidbyMWExp3TS
 
+#SART Processing
+Experiment3SART <- df %>% filter(new_exp_column == "EXP3-SART")
+Experiment3SART <- Experiment3SART %>% filter(blockcode == "SART")
+
+#Mind Wandering Assignment
+#Add in Mind Wandering Variable
+SARTMindWander <- Experiment3SART[!duplicated(Experiment3SART$subject), ]
+
+# Create a function to process each subject
+process_subject <- function(subject_data) {
+  # Count the number of "Yes" and "No" responses
+  yes_count <- sum(subject_data$probe_response == "Yes")
+  no_count <- sum(subject_data$probe_response == "No")
+  
+  # Compare counts and assign a value based on the majority response
+  if (yes_count > no_count) {
+    result <- "Yes"
+  } else if (yes_count < no_count) {
+    result <- "No"
+  } else {
+    result <- "Tie"  # Handle tie situations if needed
+  }
+  
+  return(result)
+}
+
+# Iterate through subjects and process each one
+resultsSART <- sapply(split(SARTMindWander, SARTMindWander$subject), process_subject)
+
+# Display the results
+result_dataSART <- data.frame(subject = names(resultsSART), MWassignment = resultsSART)
+print(result_dataSART)
+result_dataSART %>% count(MWassignment)
+result_dataSART$subject <- as.integer(result_dataSART$subject)
+
+
+Experiment3SART <- left_join(Experiment3SART, result_dataSART, by = "subject")
+
+Experiment3Full <- rbind(Experiment3TS, Experiment3SART)
+
+
+#Compare RT and ACC by Experiment and Group
+exp3Latency <- lm(latency ~ new_exp_column*new_cond_column, data = Experiment3Full)
+summary(exp3Latency)
+
+LatencyExp3 <- ggplot(Experiment3Full, aes(x = new_exp_column, y = latency, fill = new_exp_column)) +
+  stat_summary(
+    fun = "mean", 
+    geom = "bar", 
+    position = position_dodge(width = 0.9),
+    aes(label = round(..y.., digits = 2)),
+    vjust = -0.5
+  ) +
+  geom_text(
+    stat = "summary", 
+    fun = "mean", 
+    aes(label = round(..y.., digits = 3)),
+    position = position_dodge(width = 0.9),
+    vjust = -0.5
+  ) +
+  labs(
+    x = "Experimental Condition",
+    y = "Average Latency"
+  ) +
+  ggtitle(str_wrap("Average Amount of Time to Respond to Stimuli Between SART and TS", width = 70)) +
+  theme_minimal() +
+  theme(plot.title = element_text(margin = margin(b = 5)))  # Adjust the bottom margin of the title
+
+
+# Print the plot
+LatencyExp3
+
+#This really isn't a surprise.  The nature of the TS paradigm requires longer response times.
+
+
+#My approach to this is wrong.  I need to first filter out the "Go" trials in the SART and focus on the Accuracy of the incongruent trials.
+#congruence: 	1 = target symbol and distractor symbol share the same key, 2 = target symbol and distractor symbol require opposite keys
+Experiment3Full$congruence <- ifelse(is.na(Experiment3Full$congruence), 0, Experiment3Full$congruence)
+
+Experiment3ACCfilt <- Experiment3Full %>% filter(trialcode != "go")
+Experiment3ACCfilt <- Experiment3ACCfilt %>% filter(congruence != 1)
+
+exp3ACC <- lm(correct ~ new_exp_column*new_cond_column, data = Experiment3ACCfilt)
+summary(exp3ACC)
+
+exp3ACC <- lm(correct ~ new_exp_column, data = Experiment3ACCfilt)
+summary(exp3ACC)
+
+exp3ACC <- lm(correct ~ new_cond_column, data = Experiment3ACCfilt)
+summary(exp3ACC)
+
+exp3ACC <- lm(correct ~ new_exp_column*MWassignment, data = Experiment3ACCfilt)
+summary(exp3ACC)
+
+
+exp3ACC <- lm(correct ~ MWassignment, data = Experiment3ACCfilt)
+summary(exp3ACC)
+
+
+ACCExp3 <- ggplot(Experiment3ACCfilt, aes(x = new_exp_column, y = correct, fill = MWassignment)) +
+  stat_summary(
+    fun = "mean", 
+    geom = "bar", 
+    position = position_dodge(width = 0.9),
+    aes(label = round(..y.., digits = 2)),
+    vjust = -0.5
+  ) +
+  geom_text(
+    stat = "summary", 
+    fun = "mean", 
+    aes(label = round(..y.., digits = 3)),
+    position = position_dodge(width = 0.9),
+    vjust = -0.5
+  ) +
+  labs(
+    x = "Experimental Condition",
+    y = "Average Accuracy"
+  ) +
+  ggtitle(str_wrap("Average Amount of Correct Responses to Stimuli Between SART No Go Trials and TS Incongruent Trials", width = 70)) +
+  theme_minimal() +
+  theme(plot.title = element_text(margin = margin(b = 5)))  # Adjust the bottom margin of the title
+
+
+# Print the plot
+ACCExp3
+
+#Let me look at this focusing on Go trial accuracy and Congruent trial accuracy
+Experiment3ACCfiltGoCon <- Experiment3Full %>% filter(trialcode != "nogo")
+Experiment3ACCfiltGoCon <- Experiment3ACCfiltGoCon %>% filter(congruence == 1| congruence == 0)
+
+exp3ACC <- lm(correct ~ new_exp_column*new_cond_column, data = Experiment3ACCfiltGoCon)
+summary(exp3ACC)
+
+exp3ACC <- lm(correct ~ new_exp_column, data = Experiment3ACCfiltGoCon)
+summary(exp3ACC)
+
+exp3ACC <- lm(correct ~ new_cond_column, data = Experiment3ACCfiltGoCon)
+summary(exp3ACC)
+
+exp3ACC <- lm(correct ~ new_exp_column*MWassignment, data = Experiment3ACCfiltGoCon)
+summary(exp3ACC)
+
+
+exp3ACC <- lm(correct ~ MWassignment, data = Experiment3ACCfiltGoCon)
+summary(exp3ACC)
+
+
+ACCExp3Go <- ggplot(Experiment3ACCfiltGoCon, aes(x = new_exp_column, y = correct, fill = MWassignment)) +
+  stat_summary(
+    fun = "mean", 
+    geom = "bar", 
+    position = position_dodge(width = 0.9),
+    aes(label = round(..y.., digits = 2)),
+    vjust = -0.5
+  ) +
+  geom_text(
+    stat = "summary", 
+    fun = "mean", 
+    aes(label = round(..y.., digits = 3)),
+    position = position_dodge(width = 0.9),
+    vjust = -0.5
+  ) +
+  labs(
+    x = "Experimental Condition",
+    y = "Average Accuracy"
+  ) +
+  ggtitle(str_wrap("Average Amount of Correct Responses to Stimuli Between SART No Go Trials and TS Incongruent Trials", width = 70)) +
+  theme_minimal() +
+  theme(plot.title = element_text(margin = margin(b = 5)))  # Adjust the bottom margin of the title
+
+
+# Print the plot
+ACCExp3Go
+
+
+
+exp3Latency <- lm(latency ~ new_exp_column*new_cond_column, data = Experiment3ACCfiltGoCon)
+summary(exp3Latency)
+
+exp3Latency <- lm(latency ~ new_exp_column*MWassignment, data = Experiment3ACCfiltGoCon)
+summary(exp3Latency)
+
+
+
+LatencyExp3 <- ggplot(Experiment3ACCfiltGoCon, aes(x = new_exp_column, y = latency, fill = MWassignment)) +
+  stat_summary(
+    fun = "mean", 
+    geom = "bar", 
+    position = position_dodge(width = 0.9),
+    aes(label = round(..y.., digits = 2)),
+    vjust = -0.5
+  ) +
+  geom_text(
+    stat = "summary", 
+    fun = "mean", 
+    aes(label = round(..y.., digits = 3)),
+    position = position_dodge(width = 0.9),
+    vjust = -0.5
+  ) +
+  labs(
+    x = "Experimental Condition",
+    y = "Average Latency"
+  ) +
+  ggtitle(str_wrap("Average Amount of Time to Respond to Stimuli Between SART and TS", width = 70)) +
+  theme_minimal() +
+  theme(plot.title = element_text(margin = margin(b = 5)))  # Adjust the bottom margin of the title
+
+
+# Print the plot
+LatencyExp3
 
 
 
