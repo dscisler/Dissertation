@@ -2,7 +2,10 @@
 title: "ProcessingAndAnalysisScript_JAN2024"
 author: "Dean Cisler"
 date: "`r Sys.Date()`"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
 ---
 
 This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
@@ -163,7 +166,7 @@ MindWanderingDissertation <- create_checksum(CompleteDataSet)
 # Print the checksum
 print(MindWanderingDissertation)
 
-write.csv(CompleteDataSet, "C:/Users/Cisler/Desktop/Data/For Analysis/CompleteDataSet.csv")
+#write.csv(CompleteDataSet, "C:/Users/Cisler/Desktop/Data/For Analysis/CompleteDataSet.csv")
 
 
 ###Add in Exp Number and Condition
@@ -201,6 +204,7 @@ list7 <- sub("\\.iqdat$", "", list7)
 list8 <- sub("\\.iqdat$", "", list8)
 
 CompleteDataSet$source.x <- gsub("^df_", "", CompleteDataSet$source.x)
+df <- CompleteDataSet
 
 # Create conditions for each list
 condition1 <- df$source.x %in% list1
@@ -260,6 +264,8 @@ library(Rfast)
 library(MASS)
 library(ggpubr)
 library(vcd)
+library(ggmosaic)
+library(gridExtra)
 
 #Separate Out EXP1 and EXP2 into different dataframes
 EXP1df <- df %>% filter(grepl("^EXP1", new_exp_column, ignore.case = TRUE))
@@ -331,7 +337,7 @@ grid.arrange(intProbe, postProbe, ncol = 2)
 ###########################################################################################
 
 ###########################################################################################
-#Begin Regression Analyses
+#Creating Tables and Plots on re-engagement with the task; Analysis of SART Data
 ###########################################################################################
 # Create a function to process each subject
 process_subject <- function(subject_data) {
@@ -358,6 +364,8 @@ results <- sapply(split(ProbeRespons, ProbeRespons$subject), process_subject)
 result_data <- data.frame(subject = names(results), MWassignment = results)
 print(result_data)
 result_data$subject <- as.integer(result_data$subject)
+
+
 
 MWassign <- left_join(ProbeRespons, result_data, by = 'subject')
 
@@ -388,50 +396,16 @@ exp1exp2Analysis2$new_exp_column <- as.factor(exp1exp2Analysis2$new_exp_column)
 exp1exp2Analysis2$new_cond_column <- as.factor(exp1exp2Analysis2$new_cond_column)
 exp1exp2Analysis2$MWassignment <- as.factor(exp1exp2Analysis2$MWassignment)
 
-exp1Analysis <- exp1exp2Analysis2
-exp1Analysis <- exp1Analysis %>% filter(exp == 'exp1')
-
-exp2Analysis <- exp1exp2Analysis2
-exp2Analysis <- exp2Analysis %>% filter(exp == 'exp2')
-
-PaidMWlmProbe <- lm(paid_response~new_cond_column, data = exp1exp2Analysis2)
-summary(PaidMWlmProbe)
-
-
-##########MW Response Analysis#######################
-#When assigned as a mind wanderer or not
-MWlmProbe <- glm(MWassignment ~ new_exp_column * new_cond_column, 
-                 family = binomial(link = "logit"), data = exp1exp2Analysis2)
-
-summary(MWlmProbe)
+# exp1Analysis <- exp1exp2Analysis2
+# exp1Analysis <- exp1Analysis %>% filter(new_exp_colum == 'exp1')
+# 
+# exp2Analysis <- exp1exp2Analysis2
+# exp2Analysis <- exp2Analysis %>% filter(new_exp_colum == 'exp2')
 
 
 
-ggplot(exp1exp2Analysis2, aes(x = paid_response, fill = new_exp_column)) +
-  geom_histogram(aes(y=..density..), color='gray50',
-                 alpha=0.2, binwidth=0.25, position = "identity")+
-  geom_density(alpha=0.2)
-
-
-
-MWprobePlace <- ggplot(data = exp1exp2Analysis2, aes(x = new_exp_column, y = paid_response)) +
-  #geom_line() +
-  geom_bar(stat = "summary", fun = "mean", position = "dodge")
-MWprobePlace
-
-
-MWprobePlace.labs <- MWprobePlace + labs(title = "Average Amount to be Paid by Probe Placement", x = "Probe Placement", y = "Average Amount to be Paid") + scale_x_discrete(limit = c("EXP1", "EXP2"), labels = c("Interrupting Probe","Retrospective Probe"))
-MWprobePlace.labs
-
-result <- exp1exp2Analysis2 %>%
-  group_by(new_exp_column) %>%
-  summarize(mean_value = mean(paid_response))
-
-# Print the result
-print(result)
-
-write.csv(exp1exp2Analysis2, "C:/Users/Cisler/Desktop/Data/For Analysis/ProbeAnalysisForRQs1and2.csv")
-write.csv(df, "C:/Users/Cisler/Desktop/Data/For Analysis/CompleteDatasetWithTransformationsAndModifications_17JAN2024.csv")
+# write.csv(exp1exp2Analysis2, "C:/Users/Cisler/Desktop/Data/For Analysis/ProbeAnalysisForRQs1and2.csv")
+# write.csv(df, "C:/Users/Cisler/Desktop/Data/For Analysis/CompleteDatasetWithTransformationsAndModifications_17JAN2024.csv")
 
 ```
 ```{r}
@@ -449,6 +423,9 @@ SARTexp2 <- df %>% filter(new_exp_column == "EXP2")
 SARTexp2 <- SARTexp2 %>% filter(blockcode == "SART")
 
 SARTexp1exp2 <- rbind(SARTexp1, SARTexp2)
+SARTexp1exp2 <- left_join(SARTexp1exp2, result_data, by = "subject")
+
+SARTexp1exp2 <- SARTexp1exp2 %>% filter(MWassignment != "Tie")
 
 #NASA-TLX Transformations
 SARTexp1exp2 <- SARTexp1exp2 %>%
@@ -581,8 +558,6 @@ FAbyConditionsInt <- SARTfaFilt %>%
   group_by(new_exp_column, new_cond_column) %>%
   summarize(mean_value = mean(FA))
 
-MISSlm <- lm(miss ~ new_exp_column*new_cond_column, data = SARTaccFilt)
-summary(MISSlm)
 
 MISSbyGroup <- ggplot(SARTaccFilt, aes(x = new_cond_column, y = miss, fill = new_exp_column)) +
   stat_summary(
@@ -607,14 +582,10 @@ MISSbyGroup <- ggplot(SARTaccFilt, aes(x = new_cond_column, y = miss, fill = new
   theme_minimal()
 MISSbyGroup
 
-FAbyConditionsInt <- SARTfaFilt %>%
+MissbyConditionsInt <- SARTfaFilt %>%
   group_by(new_exp_column, new_cond_column) %>%
-  summarize(mean_value = mean(FA))
+  summarize(mean_value = mean(miss))
 
-
-
-CRlm <- lm(CR ~ new_exp_column*new_cond_column, data = SARTfaFilt)
-summary(CRlm)
 
 CRbyGroup <- ggplot(SARTfaFilt, aes(x = new_cond_column, y = CR, fill = new_exp_column)) +
   stat_summary(
@@ -639,33 +610,63 @@ CRbyGroup <- ggplot(SARTfaFilt, aes(x = new_cond_column, y = CR, fill = new_exp_
   theme_minimal()
 CRbyGroup
 
-FAbyConditionsInt <- SARTfaFilt %>%
+CRbyConditionsInt <- SARTfaFilt %>%
   group_by(new_exp_column, new_cond_column) %>%
-  summarize(mean_value = mean(FA))
+  summarize(mean_value = mean(CR))
 
 #The misses and CR analyses are appearing as I expected.  The graphs and tables are just the inverse from the analyses of FAs and Hits.  I'm just going to 
 
-#Post Task Survey Analyses for exps 1 and 2
+
+
+
+```
+
+```{r Analysis of RQ Is MW a Form of Cognitive Restoration}
+# ##################################################################################################################
+# #These are my analyses for Post Task Surveys
+# ##################################################################################################################
+#Post Task Survey Analyses for exps 1 and 2 to address RQ1.  Should I exclude the data collected from the post-task condition or keep both in?
 library(corrr)
 library(ggcorrplot)
 library(FactoMineR)
 library(psych)
 library(GPArotation)
 
-PostSurveys <- SARTexp1exp2[!duplicated(SARTexp1exp2$subject), ]
+##########MW Response Analysis#######################
 
-PostSurveys <- PostSurveys %>% filter(MWassignment != "Tie")
+PostSurveys <- SARTexp1exp2[!duplicated(SARTexp1exp2$subject), ]
 
 PostSurveys$difficulty_responseNum <- ifelse(PostSurveys$difficulty_response == 'Very Difficult', 1, ifelse(PostSurveys$difficulty_response == 'Difficult', 2, ifelse(PostSurveys$difficulty_response == 'Neither Easy/Difficult', 3, ifelse(PostSurveys$difficulty_response == 'Easy', 4, ifelse(PostSurveys$difficulty_response == 'Very Easy', 5, 999)))))
 
 
 PostSurveys$interest_responseNum <- ifelse(PostSurveys$interest_response == 'Not at all interesting', 1, ifelse(PostSurveys$interest_response == 'A little interesting', 2, ifelse(PostSurveys$interest_response == 'Somewhat interesting', 3, ifelse(PostSurveys$interest_response == 'Pretty interesting', 4, ifelse(PostSurveys$interest_response == 'Highly Interesting', 5, 999)))))
 
-colnames(PostSurveys)
+ggplot(PostSurveys, aes(x = paid_response, fill = new_exp_column)) +
+  geom_density(alpha=0.2)
 
-#pcadf <- PostSurveys[, c(106, 107, 108, 109, 110, 111, 112, 83, 113, 114)]
 
-pcadf <- PostSurveys[, c(107, 108, 109, 110, 111, 112, 113, 114)]
+MWprobePlace <- ggplot(data = PostSurveys, aes(x = new_exp_column, y = paid_response, fill = MWassignment)) +
+  geom_bar(stat = "summary", fun = "mean", position = "dodge") + 
+  scale_fill_manual(values = c("Yes" = "blue", "No" = "red"))
+MWprobePlace
+
+
+MWprobePlace.labs <- MWprobePlace + labs(title = "Average Amount to be Paid by Probe Placement", x = "Probe Placement", y = "Average Amount to be Paid") + scale_x_discrete(limit = c("EXP1", "EXP2"), labels = c("Interrupting Probe","Retrospective Probe"))
+MWprobePlace.labs
+
+PaidMWlmProbe <- lm(paid_response~new_exp_column*MWassignment, data = PostSurveys)
+summary(PaidMWlmProbe)
+
+PaidLmresult <- PostSurveys %>%
+  group_by(new_exp_column) %>%
+  summarize(mean_value = mean(paid_response))
+
+# Print the result
+print(PaidLmresult)
+
+#colnames(PostSurveys)
+
+pcadf <- PostSurveys[, c(102, 103, 104, 105, 106, 107, 112, 113)]
 
 model = fa(pcadf, 2, rotate="varimax")
 model
@@ -678,75 +679,296 @@ EFAanalysis <- cbind(PostSurveys, modelResults)
 summary(lm(MR1 ~ new_exp_column*MWassignment, data= EFAanalysis))
 summary(lm(MR2 ~ new_exp_column*MWassignment, data= EFAanalysis))
 
-##EFA not separated by group
-pcadfcor <- cor(pcadf)
+ggplot(EFAanalysis, aes(x = MR1, color = MWassignment)) +
+   geom_density()
 
-fa.eigen <- eigen(pcadfcor)
-fa.eigen$values
+table(EFAanalysis$difficulty_responseNum)
+table(EFAanalysis$interest_responseNum)
+table(EFAanalysis$effort_response_coded)
+table(EFAanalysis$physicaldemand_response_coded)
+table(EFAanalysis$temporaldemand_response_coded)
+table(EFAanalysis$performance_response_coded)
+table(EFAanalysis$frustration_response_coded)
+table(EFAanalysis$MWassignment)
 
-plot(fa.eigen$values, type='b', ylab='Eigenvalues', xlab='Factor')
+#Tables for the raw EFA scores based on MW assignment and MW assignment by Enjoyable condition
+MWAssignmentByFactorLoadings <- data.frame(
+  no = ifelse(EFAanalysis$MWassignment == "No", EFAanalysis$MR1, NA),
+  yes = ifelse(EFAanalysis$MWassignment == "Yes", EFAanalysis$MR1, NA)
+)
 
-fa.res<-psych::fa(x=pcadfcor, factors=2, rotation='varimax')
-fa.res
+MWAssignmentByFactorLoadings
 
-#I used the factanal here because of a suggestion to obtain the regression based factor scores suggested by DiStefano et al. (2019).  I got the very similar results using this method as I did with the psych package above.  There might be some slight differences in the computations, but the plot was exactly the same and the linear analysis had the same significant finding for the mind wandering grouping variable.
-testModel <- factanal(pcadf, 2, scores= c("regression"), rotation= "varimax")
-testModel$scores
-testModelScores <- testModel$scores
-EFAtest <- EFAanalysis
-EFAtest <- cbind(EFAtest, testModelScores)
-summary(lm(Factor1 ~ new_exp_column*MWassignment, data= EFAtest))
+MWAssignmentAndEnjoyableConditionByFactorLoadings <- data.frame(
+  NoMWandEnjoy = ifelse(EFAanalysis$MWassignment == "No" & EFAanalysis$new_cond_column == "Enjoy", EFAanalysis$MR1, NA),
+  NoMWandNotEnjoy = ifelse(EFAanalysis$MWassignment == "No" & EFAanalysis$new_cond_column == "NotEnjoy", EFAanalysis$MR1, NA),
+  YesMWandEnjoy = ifelse(EFAanalysis$MWassignment == "Yes" & EFAanalysis$new_cond_column == "Enjoy", EFAanalysis$MR1, NA),
+  YesMWandNotEnjoy = ifelse(EFAanalysis$MWassignment == "Yes" & EFAanalysis$new_cond_column == "NotEnjoy", EFAanalysis$MR1, NA)
+)
 
-#Factor2 is more of an index of effort on task.  Factor1 is more of a measure of misery
-#use the psych package.  Use FA function, 
+MWAssignmentAndEnjoyableConditionByFactorLoadings
+
+averages <- colMeans(MWAssignmentAndEnjoyableConditionByFactorLoadings, na.rm = TRUE)
+averages <- data.frame(Average = averages)
+averages
 
 
-ggplot(pcadf, aes(x = mentaldemand_response_coded)) +
+#Tables for the raw Mental Demand Coded Scores by MW assignment and Enjoyment Condition
+MWAssignmentByMentalDemand <- data.frame(
+  no = ifelse(EFAanalysis$MWassignment == "No", EFAanalysis$mentaldemand_response_coded, NA),
+  yes = ifelse(EFAanalysis$MWassignment == "Yes", EFAanalysis$mentaldemand_response_coded, NA)
+)
+
+MWAssignmentByMentalDemand
+
+MWAssignmentAndEnjoyableConditionByMentalDemand <- data.frame(
+  NoMWandEnjoy = ifelse(EFAanalysis$MWassignment == "No" & EFAanalysis$new_cond_column == "Enjoy", EFAanalysis$mentaldemand_response_coded, NA),
+  NoMWandNotEnjoy = ifelse(EFAanalysis$MWassignment == "No" & EFAanalysis$new_cond_column == "NotEnjoy", EFAanalysis$mentaldemand_response_coded, NA),
+  YesMWandEnjoy = ifelse(EFAanalysis$MWassignment == "Yes" & EFAanalysis$new_cond_column == "Enjoy", EFAanalysis$mentaldemand_response_coded, NA),
+  YesMWandNotEnjoy = ifelse(EFAanalysis$MWassignment == "Yes" & EFAanalysis$new_cond_column == "NotEnjoy", EFAanalysis$mentaldemand_response_coded, NA)
+)
+
+MWAssignmentAndEnjoyableConditionByMentalDemand
+
+MentalDemandaverages <- colMeans(MWAssignmentAndEnjoyableConditionByMentalDemand, na.rm = TRUE)
+MentalDemandaverages <- data.frame(Average = MentalDemandaverages)
+MentalDemandaverages
+
+ggplot(EFAanalysis, aes(x = mentaldemand_response_coded)) +
   geom_histogram(binwidth = 5, fill = "skyblue", color = "black", alpha = 0.7) +
   labs(title = "Histogram of Mental Demand", x = "Value", y = "Frequency") +
   theme_minimal()
 
-ggplot(pcadf, aes(x = physicaldemand_response_coded)) +
+ggplot(EFAanalysis, aes(x = mentaldemand_response_coded, color = MWassignment)) +
+   geom_density()
+
+
+#Tables for the raw Physical Demand Coded Scores by MW assignment and Enjoyment Condition
+MWAssignmentByPhysicalDemand <- data.frame(
+  no = ifelse(EFAanalysis$MWassignment == "No", EFAanalysis$physicaldemand_response_coded, NA),
+  yes = ifelse(EFAanalysis$MWassignment == "Yes", EFAanalysis$physicaldemand_response_coded, NA)
+)
+
+MWAssignmentByPhysicalDemand
+
+MWAssignmentAndEnjoyableConditionByPhysicalDemand <- data.frame(
+  NoMWandEnjoy = ifelse(EFAanalysis$MWassignment == "No" & EFAanalysis$new_cond_column == "Enjoy", EFAanalysis$physicaldemand_response_coded, NA),
+  NoMWandNotEnjoy = ifelse(EFAanalysis$MWassignment == "No" & EFAanalysis$new_cond_column == "NotEnjoy", EFAanalysis$physicaldemand_response_coded, NA),
+  YesMWandEnjoy = ifelse(EFAanalysis$MWassignment == "Yes" & EFAanalysis$new_cond_column == "Enjoy", EFAanalysis$physicaldemand_response_coded, NA),
+  YesMWandNotEnjoy = ifelse(EFAanalysis$MWassignment == "Yes" & EFAanalysis$new_cond_column == "NotEnjoy", EFAanalysis$physicaldemand_response_coded, NA)
+)
+
+MWAssignmentAndEnjoyableConditionByPhysicalDemand
+
+PhysicalDemandaverages <- colMeans(MWAssignmentAndEnjoyableConditionByPhysicalDemand, na.rm = TRUE)
+PhysicalDemandaverages <- data.frame(Average = PhysicalDemandaverages)
+PhysicalDemandaverages
+
+ggplot(EFAanalysis, aes(x = physicaldemand_response_coded)) +
   geom_histogram(binwidth = 5, fill = "skyblue", color = "black", alpha = 0.7) +
   labs(title = "Histogram of Physical Demand", x = "Value", y = "Frequency") +
   theme_minimal()
 
-ggplot(pcadf, aes(x = temporaldemand_response_coded)) +
+ggplot(EFAanalysis, aes(x = physicaldemand_response_coded, color = MWassignment)) +
+  geom_density()
+
+
+#Tables for the raw Temporal Demand Coded Scores by MW assignment and Enjoyment Condition
+MWAssignmentBytemporaldemand <- data.frame(
+  no = ifelse(EFAanalysis$MWassignment == "No", EFAanalysis$temporaldemand_response_coded, NA),
+  yes = ifelse(EFAanalysis$MWassignment == "Yes", EFAanalysis$temporaldemand_response_coded, NA)
+)
+
+MWAssignmentBytemporaldemand
+
+MWAssignmentAndEnjoyableConditionBytemporaldemand <- data.frame(
+  NoMWandEnjoy = ifelse(EFAanalysis$MWassignment == "No" & EFAanalysis$new_cond_column == "Enjoy", EFAanalysis$temporaldemand_response_coded, NA),
+  NoMWandNotEnjoy = ifelse(EFAanalysis$MWassignment == "No" & EFAanalysis$new_cond_column == "NotEnjoy", EFAanalysis$temporaldemand_response_coded, NA),
+  YesMWandEnjoy = ifelse(EFAanalysis$MWassignment == "Yes" & EFAanalysis$new_cond_column == "Enjoy", EFAanalysis$temporaldemand_response_coded, NA),
+  YesMWandNotEnjoy = ifelse(EFAanalysis$MWassignment == "Yes" & EFAanalysis$new_cond_column == "NotEnjoy", EFAanalysis$temporaldemand_response_coded, NA)
+)
+
+MWAssignmentAndEnjoyableConditionBytemporaldemand
+
+temporaldemandaverages <- colMeans(MWAssignmentAndEnjoyableConditionBytemporaldemand, na.rm = TRUE)
+temporaldemandaverages <- data.frame(Average = temporaldemandaverages)
+temporaldemandaverages
+
+ggplot(EFAanalysis, aes(x = temporaldemand_response_coded)) +
   geom_histogram(binwidth = 5, fill = "skyblue", color = "black", alpha = 0.7) +
   labs(title = "Histogram of Temporal Demand", x = "Value", y = "Frequency") +
   theme_minimal()
 
-ggplot(pcadf, aes(x = performance_response_coded)) +
+ggplot(EFAanalysis, aes(x = temporaldemand_response_coded, color = MWassignment)) +
+  geom_density()
+
+
+#Tables for the raw Performance Coded Scores by MW assignment and Enjoyment Condition
+MWAssignmentByperformance <- data.frame(
+  no = ifelse(EFAanalysis$MWassignment == "No", EFAanalysis$performance_response_coded, NA),
+  yes = ifelse(EFAanalysis$MWassignment == "Yes", EFAanalysis$performance_response_coded, NA)
+)
+
+MWAssignmentByperformance
+
+MWAssignmentAndEnjoyableConditionByperformance <- data.frame(
+  NoMWandEnjoy = ifelse(EFAanalysis$MWassignment == "No" & EFAanalysis$new_cond_column == "Enjoy", EFAanalysis$performance_response_coded, NA),
+  NoMWandNotEnjoy = ifelse(EFAanalysis$MWassignment == "No" & EFAanalysis$new_cond_column == "NotEnjoy", EFAanalysis$performance_response_coded, NA),
+  YesMWandEnjoy = ifelse(EFAanalysis$MWassignment == "Yes" & EFAanalysis$new_cond_column == "Enjoy", EFAanalysis$performance_response_coded, NA),
+  YesMWandNotEnjoy = ifelse(EFAanalysis$MWassignment == "Yes" & EFAanalysis$new_cond_column == "NotEnjoy", EFAanalysis$performance_response_coded, NA)
+)
+
+MWAssignmentAndEnjoyableConditionByperformance
+
+performanceaverages <- colMeans(MWAssignmentAndEnjoyableConditionByperformance, na.rm = TRUE)
+performanceaverages <- data.frame(Average = performanceaverages)
+performanceaverages
+
+ggplot(EFAanalysis, aes(x = performance_response_coded)) +
   geom_histogram(binwidth = 5, fill = "skyblue", color = "black", alpha = 0.7) +
   labs(title = "Histogram of Performance Response", x = "Value", y = "Frequency") +
   theme_minimal()
 
-ggplot(pcadf, aes(x = effort_response_coded)) +
+ggplot(EFAanalysis, aes(x = performance_response_coded, color = MWassignment)) +
+  geom_density()
+
+
+#Tables for the raw Effort Coded Scores by MW assignment and Enjoyment Condition
+MWAssignmentByeffort <- data.frame(
+  no = ifelse(EFAanalysis$MWassignment == "No", EFAanalysis$effort_response_coded, NA),
+  yes = ifelse(EFAanalysis$MWassignment == "Yes", EFAanalysis$effort_response_coded, NA)
+)
+
+MWAssignmentByeffort
+
+MWAssignmentAndEnjoyableConditionByeffort <- data.frame(
+  NoMWandEnjoy = ifelse(EFAanalysis$MWassignment == "No" & EFAanalysis$new_cond_column == "Enjoy", EFAanalysis$effort_response_coded, NA),
+  NoMWandNotEnjoy = ifelse(EFAanalysis$MWassignment == "No" & EFAanalysis$new_cond_column == "NotEnjoy", EFAanalysis$effort_response_coded, NA),
+  YesMWandEnjoy = ifelse(EFAanalysis$MWassignment == "Yes" & EFAanalysis$new_cond_column == "Enjoy", EFAanalysis$effort_response_coded, NA),
+  YesMWandNotEnjoy = ifelse(EFAanalysis$MWassignment == "Yes" & EFAanalysis$new_cond_column == "NotEnjoy", EFAanalysis$effort_response_coded, NA)
+)
+
+MWAssignmentAndEnjoyableConditionByeffort
+
+effortaverages <- colMeans(MWAssignmentAndEnjoyableConditionByeffort, na.rm = TRUE)
+effortaverages <- data.frame(Average = effortaverages)
+effortaverages
+
+ggplot(EFAanalysis, aes(x = effort_response_coded)) +
   geom_histogram(binwidth = 5, fill = "skyblue", color = "black", alpha = 0.7) +
   labs(title = "Histogram of Effort Response", x = "Value", y = "Frequency") +
   theme_minimal()
 
-ggplot(pcadf, aes(x = frustration_response_coded)) +
+ggplot(EFAanalysis, aes(x = effort_response_coded, color = MWassignment)) +
+  geom_density()
+
+
+#Tables for the raw Frustration Coded Scores by MW assignment and Enjoyment Condition
+MWAssignmentByfrustration <- data.frame(
+  no = ifelse(EFAanalysis$MWassignment == "No", EFAanalysis$frustration_response_coded, NA),
+  yes = ifelse(EFAanalysis$MWassignment == "Yes", EFAanalysis$frustration_response_coded, NA)
+)
+
+MWAssignmentByfrustration
+
+MWAssignmentAndEnjoyableConditionByfrustration <- data.frame(
+  NoMWandEnjoy = ifelse(EFAanalysis$MWassignment == "No" & EFAanalysis$new_cond_column == "Enjoy", EFAanalysis$frustration_response_coded, NA),
+  NoMWandNotEnjoy = ifelse(EFAanalysis$MWassignment == "No" & EFAanalysis$new_cond_column == "NotEnjoy", EFAanalysis$frustration_response_coded, NA),
+  YesMWandEnjoy = ifelse(EFAanalysis$MWassignment == "Yes" & EFAanalysis$new_cond_column == "Enjoy", EFAanalysis$frustration_response_coded, NA),
+  YesMWandNotEnjoy = ifelse(EFAanalysis$MWassignment == "Yes" & EFAanalysis$new_cond_column == "NotEnjoy", EFAanalysis$frustration_response_coded, NA)
+)
+
+MWAssignmentAndEnjoyableConditionByfrustration
+
+frustrationaverages <- colMeans(MWAssignmentAndEnjoyableConditionByfrustration, na.rm = TRUE)
+frustrationaverages <- data.frame(Average = frustrationaverages)
+frustrationaverages
+
+ggplot(EFAanalysis, aes(x = frustration_response_coded)) +
   geom_histogram(binwidth = 5, fill = "skyblue", color = "black", alpha = 0.7) +
   labs(title = "Histogram of Frustration Response", x = "Value", y = "Frequency") +
   theme_minimal()
 
-ggplot(pcadf, aes(x = GTQ_response)) +
+ggplot(EFAanalysis, aes(x = frustration_response_coded, color = MWassignment)) +
+  geom_density()
+
+
+#Tables for the raw Difficulty Response Scores by MW assignment and Enjoyment Condition
+MWAssignmentBydifficulty <- data.frame(
+  no = ifelse(EFAanalysis$MWassignment == "No", EFAanalysis$difficulty_responseNum, NA),
+  yes = ifelse(EFAanalysis$MWassignment == "Yes", EFAanalysis$difficulty_responseNum, NA)
+)
+
+MWAssignmentBydifficulty
+
+MWAssignmentAndEnjoyableConditionBydifficulty <- data.frame(
+  NoMWandEnjoy = ifelse(EFAanalysis$MWassignment == "No" & EFAanalysis$new_cond_column == "Enjoy", EFAanalysis$difficulty_responseNum, NA),
+  NoMWandNotEnjoy = ifelse(EFAanalysis$MWassignment == "No" & EFAanalysis$new_cond_column == "NotEnjoy", EFAanalysis$difficulty_responseNum, NA),
+  YesMWandEnjoy = ifelse(EFAanalysis$MWassignment == "Yes" & EFAanalysis$new_cond_column == "Enjoy", EFAanalysis$difficulty_responseNum, NA),
+  YesMWandNotEnjoy = ifelse(EFAanalysis$MWassignment == "Yes" & EFAanalysis$new_cond_column == "NotEnjoy", EFAanalysis$difficulty_responseNum, NA)
+)
+
+MWAssignmentAndEnjoyableConditionBydifficulty
+
+difficultyaverages <- colMeans(MWAssignmentAndEnjoyableConditionBydifficulty, na.rm = TRUE)
+difficultyaverages <- data.frame(Average = difficultyaverages)
+difficultyaverages
+
+ggplot(EFAanalysis, aes(x = difficulty_responseNum)) +
+  geom_histogram(binwidth = 1, fill = "skyblue", color = "black", alpha = 0.7) +
+  labs(title = "Histogram of Difficulty Response", x = "Value", y = "Frequency") +
+  theme_minimal()
+
+ggplot(EFAanalysis, aes(x = difficulty_responseNum, color = MWassignment)) +
+  geom_density()
+
+
+#Tables for the raw Interest Response Scores by MW assignment and Enjoyment Condition
+MWAssignmentByinterest <- data.frame(
+  no = ifelse(EFAanalysis$MWassignment == "No", EFAanalysis$interest_responseNum, NA),
+  yes = ifelse(EFAanalysis$MWassignment == "Yes", EFAanalysis$interest_responseNum, NA)
+)
+
+MWAssignmentByinterest
+
+MWAssignmentAndEnjoyableConditionByinterest <- data.frame(
+  NoMWandEnjoy = ifelse(EFAanalysis$MWassignment == "No" & EFAanalysis$new_cond_column == "Enjoy", EFAanalysis$interest_responseNum, NA),
+  NoMWandNotEnjoy = ifelse(EFAanalysis$MWassignment == "No" & EFAanalysis$new_cond_column == "NotEnjoy", EFAanalysis$interest_responseNum, NA),
+  YesMWandEnjoy = ifelse(EFAanalysis$MWassignment == "Yes" & EFAanalysis$new_cond_column == "Enjoy", EFAanalysis$interest_responseNum, NA),
+  YesMWandNotEnjoy = ifelse(EFAanalysis$MWassignment == "Yes" & EFAanalysis$new_cond_column == "NotEnjoy", EFAanalysis$interest_responseNum, NA)
+)
+
+MWAssignmentAndEnjoyableConditionByinterest
+
+interestaverages <- colMeans(MWAssignmentAndEnjoyableConditionByinterest, na.rm = TRUE)
+interestaverages <- data.frame(Average = interestaverages)
+interestaverages
+
+ggplot(EFAanalysis, aes(x = interest_responseNum, color = MWassignment)) +
+  geom_histogram(binwidth = 1, fill = "skyblue", color = "black", alpha = 0.7) +
+  labs(title = "Histogram of Interest Response", x = "Value", y = "Frequency") +
+  theme_minimal()
+
+ggplot(EFAanalysis, aes(x = interest_responseNum, color = MWassignment)) +
+  geom_density()
+
+
+#GTQ Analysis
+ggplot(EFAanalysis, aes(x = GTQ_response)) +
   geom_histogram(binwidth = 5, fill = "skyblue", color = "black", alpha = 0.7) +
   labs(title = "Histogram of GTQ", x = "Value", y = "Frequency") +
   theme_minimal()
 
-ggplot(pcadf, aes(x = difficulty_responseNum)) +
-  geom_histogram(binwidth = 5, fill = "skyblue", color = "black", alpha = 0.7) +
-  labs(title = "Histogram of Difficulty Response", x = "Value", y = "Frequency") +
-  theme_minimal()
+ggplot(EFAanalysis, aes(x = GTQ_response, color = MWassignment)) +
+  geom_density()
 
-ggplot(pcadf, aes(x = interest_responseNum)) +
-  geom_histogram(binwidth = 5, fill = "skyblue", color = "black", alpha = 0.7) +
-  labs(title = "Histogram of Interest Response", x = "Value", y = "Frequency") +
-  theme_minimal()
+summary(lm(GTQ_response ~ MWassignment*new_exp_column, data = EFAanalysis))
 
-Misery <- ggplot(EFAtest, aes(x = MWassignment, y = Factor1, fill = MWassignment)) +
+
+ggplot(EFAanalysis, aes(x = MR1, color = MWassignment)) +
+  geom_density()
+
+Misery <- ggplot(EFAanalysis, aes(x = MWassignment, y = MR1, fill = MWassignment)) +
   stat_summary(
     fun = "mean", 
     geom = "bar", 
@@ -769,28 +991,7 @@ Misery <- ggplot(EFAtest, aes(x = MWassignment, y = Factor1, fill = MWassignment
   theme_minimal()
 Misery
 
-Misery2 <- ggplot(EFAanalysis, aes(x = MWassignment, y = MR2, fill = MWassignment)) +
-  stat_summary(
-    fun = "mean", 
-    geom = "bar", 
-    position = position_dodge(width = 0.9),
-    aes(label = round(..y.., digits = 2)),
-    vjust = -0.5
-  ) +
-  geom_text(
-    stat = "summary", 
-    fun = "mean", 
-    aes(label = round(..y.., digits = 3)),
-    position = position_dodge(width = 0.9),
-    vjust = -0.5
-  ) +
-  labs(
-   x = "Enjoyment Condition",
-    y = "Average Effort Ratings",
-    title = "Average Effort Ratings Between Enjoyment Conditions"
-  ) +
-  theme_minimal()
-Misery2
+
 
 #mentaldemand_response
 #effort_response
@@ -800,284 +1001,17 @@ Misery2
 #GTQ_response
 #Score NASA-TLX by subscale - score the way it is normally scored
 #Do regular EFA and extract first factor score - going to be confluence of those five variables. Take the scores for the first factor, should be a single outcome.  Compare probe by enjoyment analysis on score
-PostSurveys$mentalDemandEffortagg <- rowMeans(PostSurveys[, c("mentaldemand_response", "effort_response")])
-PostSurveys$physicalDemandPerformanceagg <- rowMeans(PostSurveys[, c("physicaldemand_response", "performance_response")])
-PostSurveys$temporalDemandFrustrationagg <- rowMeans(PostSurveys[, c("temporaldemand_response", "frustration_response")])
+# PostSurveys$mentalDemandEffortagg <- rowMeans(PostSurveys[, c("mentaldemand_response", "effort_response")])
+# PostSurveys$physicalDemandPerformanceagg <- rowMeans(PostSurveys[, c("physicaldemand_response", "performance_response")])
+# PostSurveys$temporalDemandFrustrationagg <- rowMeans(PostSurveys[, c("temporaldemand_response", "frustration_response")])
 
-TaskAndSurvAnalysis <- SARTexp1exp2 %>%
-  group_by(subject) %>%
-  summarise(
-    average_FA = mean(FA),
-    average_ACC = mean(hit)
-  )
-
-TaskAndSurvAnalysis <- left_join(TaskAndSurvAnalysis, PostSurveys, by = "subject")
-TaskAndSurvAnalysis <- left_join(TaskAndSurvAnalysis, MWassignFilt, by = "subject")
-
-timeAndfrustration <- glm(MWassignment ~ temporalDemandFrustrationagg*new_exp_column*new_cond_column, family = binomial(link = "logit"),  data = TaskAndSurvAnalysisFilt)
-summary(timeAndfrustration)
-
-physicalAndperformance <- glm(MWassignment ~ physicalDemandPerformanceagg*new_exp_column*new_cond_column, family = binomial(link = "logit"),  data = TaskAndSurvAnalysisFilt)
-summary(physicalAndperformance)
-
-mentalAndeffort <- glm(MWassignment ~ mentalDemandEffortagg*new_exp_column*new_cond_column, family = binomial(link = "logit"),  data = TaskAndSurvAnalysisFilt)
-summary(mentalAndeffort)
-t_test(TaskAndSurvAnalysis, effort_response ~ new_cond_column)
-
-EffortbyGroup <- ggplot(TaskAndSurvAnalysisFilt, aes(x = MWassignment, y = temporalDemandFrustrationagg, fill = new_exp_column)) +
-  stat_summary(
-    fun = "mean", 
-    geom = "bar", 
-    position = position_dodge(width = 0.9),
-    aes(label = round(..y.., digits = 2)),
-    vjust = -0.5
-  ) +
-  geom_text(
-    stat = "summary", 
-    fun = "mean", 
-    aes(label = round(..y.., digits = 3)),
-    position = position_dodge(width = 0.9),
-    vjust = -0.5
-  ) +
-  labs(
-   x = "Enjoyment Condition",
-    y = "Average Effort Ratings",
-    title = "Average Effort Ratings Between Enjoyment Conditions"
-  ) +
-  theme_minimal()
-EffortbyGroup
-
-PerformancebyGroup <- ggplot(PostSurveys, aes(x = new_cond_column, y = physicalDemandPerformanceagg, fill = new_exp_column)) +
-  stat_summary(
-    fun = "mean", 
-    geom = "bar", 
-    position = position_dodge(width = 0.9),
-    aes(label = round(..y.., digits = 2)),
-    vjust = -0.5
-  ) +
-  geom_text(
-    stat = "summary", 
-    fun = "mean", 
-    aes(label = round(..y.., digits = 3)),
-    position = position_dodge(width = 0.9),
-    vjust = -0.5
-  ) +
-  labs(
-   x = "Enjoyment Condition",
-    y = "Average False Alarms",
-    title = "Average False Alarms of Go Trials Between Enjoyment and Probe Conditions"
-  ) +
-  theme_minimal()
-PerformancebyGroup
-
-
-FrustrationbyGroup <- ggplot(PostSurveys, aes(x = new_cond_column, y = temporalDemandFrustrationagg, fill = new_exp_column)) +
-  stat_summary(
-    fun = "mean", 
-    geom = "bar", 
-    position = position_dodge(width = 0.9),
-    aes(label = round(..y.., digits = 2)),
-    vjust = -0.5
-  ) +
-  geom_text(
-    stat = "summary", 
-    fun = "mean", 
-    aes(label = round(..y.., digits = 3)),
-    position = position_dodge(width = 0.9),
-    vjust = -0.5
-  ) +
-  labs(
-   x = "Enjoyment Condition",
-    y = "Average False Alarms",
-    title = "Average False Alarms of Go Trials Between Enjoyment and Probe Conditions"
-  ) +
-  theme_minimal()
-FrustrationbyGroup
-
-
-```
-
-```{r Analysis of RQ Is MW a Form of Cognitive Restoration}
-##################################################################################################################
-#These are my analyses for RQ1 - Is MW a Form of Cognitive Restoration
-##################################################################################################################
-TaskAndSurvAnalysisFiltexp1 <- TaskAndSurvAnalysisFilt %>% filter(new_exp_column == "EXP1")
-
-TaskAndSurvAnalysisFilt %>% group_by(MWassignment, new_exp_column, new_cond_column) %>% summarise(count = n())
-
-#Linear Model
-PaidByMW <- lm(paid_response ~ MWassignment*new_exp_column, data = TaskAndSurvAnalysisFilt)
-summary(PaidByMW)
-
-#LMER - Enjoyment Condition as Random Effect
-PaidByMW <- lmer(paid_response ~ new_exp_column*MWassignment + (1|new_cond_column), data = TaskAndSurvAnalysisFilt)
-summary(PaidByMW)
-
-#LMER - Mind Wandering Assignment as Random Effect
-PaidByMW <- lmer(paid_response ~ new_exp_column*new_cond_column + (1|MWassignment), data = TaskAndSurvAnalysisFilt)
-summary(PaidByMW)
-
-
-dunAOV <- aov(paid_response ~ MWassignment*new_exp_column, TaskAndSurvAnalysisFilt)
-res <- dunnettT3Test(dunAOV)
-summary(res)
-summaryGroup(res)
-
-PaidbyMWExp <- ggplot(TaskAndSurvAnalysisFilt, aes(x = MWassignment, y = paid_response, fill = new_exp_column)) +
-  stat_summary(
-    fun = "mean", 
-    geom = "bar", 
-    position = position_dodge(width = 0.9),
-    aes(label = round(..y.., digits = 2)),
-    vjust = -0.5
-  ) +
-  geom_text(
-    stat = "summary", 
-    fun = "mean", 
-    aes(label = round(..y.., digits = 3)),
-    position = position_dodge(width = 0.9),
-    vjust = -0.5
-  ) +
-  labs(
-    x = "Mind Wandering Assignment",
-    y = "Average Amount to be Paid"
-  ) +
-  ggtitle(str_wrap("Average Amount of Payment Required to Continue Between Mind Wandering Assignment and Probe Conditions", width = 70)) +
-  theme_minimal() +
-  theme(plot.title = element_text(margin = margin(b = 5)))  # Adjust the bottom margin of the title
-
-
-# Print the plot
-PaidbyMWExp
-
-###SART Analysis
-SARTexp1exp2 <- left_join(SARTexp1exp2, MWassignFilt, by = "subject")
-SARTexp1exp2Filt <- SARTexp1exp2 %>% filter(MWassignment != "Tie")
-
-SARTrtFilt <- SARTexp1exp2Filt %>% filter(correct == 1)
-SARTrtFilt <- SARTexp1exp2Filt %>% filter(trialtype == "Go")
-SARTfaFilt <- SARTexp1exp2Filt %>% filter(trialtype == "Go")
-
-SARTaccFilt <- SARTexp1exp2Filt %>% filter(trialtype == "NoGo")
-SARTmissFilt <- SARTexp1exp2Filt %>% filter(trialtype == "NoGo")
-
-###Analysis of RT for SART
-#Linear Model
-RTlm <- lm(latency~new_exp_column*MWassignment, data = SARTrtFilt)
-summary(RTlm)
-
-RTlm <- lm(latency~MWassignment, data = SARTrtFilt)
-summary(RTlm)
-
-RTlm <- lm(latency~new_exp_column, data = SARTrtFilt)
-summary(RTlm)
-
-#LMER - Enjoyment Condition as Random Effects
-RTlm <- lmer(latency~new_exp_column*MWassignment + (1|new_cond_column), data = SARTrtFilt)
-summary(RTlm)
-
-#LMER - Subjects as Random Effects
-RTlm <- lmer(latency~new_exp_column*MWassignment + (1|subject), data = SARTrtFilt)
-summary(RTlm)
-
-
-RTbyGroup <- ggplot(SARTrtFilt, aes(x = MWassignment, y = latency, fill = new_exp_column)) +
-    stat_summary(
-    fun = "mean", 
-    geom = "bar", 
-    position = position_dodge(width = 0.9),
-    aes(label = round(..y.., digits = 2)),
-    vjust = -0.5
-  ) +
-  geom_text(
-    stat = "summary", 
-    fun = "mean", 
-    aes(label = round(..y.., digits = 2)),
-    position = position_dodge(width = 0.9),
-    vjust = -0.5
-  ) +
-  labs(
-    x = "Mind Wandering Assignment",
-    y = "Average Reaction Time"
-  ) +
-  ggtitle(str_wrap("Average Reaction Time of Go Trials Between Mind Wandering Assignment and Probe Conditions", width = 70)) +
-  theme_minimal() +
-  theme(plot.title = element_text(margin = margin(b = 5)))  # Adjust the bottom margin of the title
-RTbyGroup
-
-
-RTbyConditionsInt <- SARTrtFilt %>%
-  group_by(new_exp_column, MWassignment) %>%
-  summarize(mean_value = mean(paid_response))
-
-
-#####Analysis of ACC for SART NoGo Trials
-ACClm <- lmer(correct ~ new_exp_column*MWassignment + (1|subject), data = SARTaccFilt)
-summary(ACClm)
-
-ACCbyGroup <- ggplot(SARTaccFilt, aes(x = MWassignment, y = correct, fill = new_exp_column)) +
-  stat_summary(
-    fun = "mean", 
-    geom = "bar", 
-    position = position_dodge(width = 0.9),
-    aes(label = round(..y.., digits = 2)),
-    vjust = -0.5
-  ) +
-  geom_text(
-    stat = "summary", 
-    fun = "mean", 
-    aes(label = round(..y.., digits = 2)),
-    position = position_dodge(width = 0.9),
-    vjust = -0.5
-  ) +
-  labs(
-    x = "Mind Wandering Assignment",
-    y = "Average Accuracy of No Go Trials"
-  ) +
-  ggtitle(str_wrap("Average Accuracy of No Go Trials Between Mind Wandering Assignment and Probe Conditions", width = 70)) +
-  theme_minimal() +
-  theme(plot.title = element_text(margin = margin(b = 5)))  # Adjust the bottom margin of the title
-ACCbyGroup
-
-
-#Remember*** I am interpreting the target (No Go trials) as hits.  So withholding a response on a Go trial would be an FA
-FAlm <- lmer(FA ~ new_exp_column*MWassignment + (1|subject), data = SARTfaFilt)
-summary(FAlm)
-
-FAbyGroup <- ggplot(SARTfaFilt, aes(x = MWassignment, y = FA, fill = new_exp_column)) +
-  stat_summary(
-    fun = "mean", 
-    geom = "bar", 
-    position = position_dodge(width = 0.9),
-    aes(label = round(..y.., digits = 2)),
-    vjust = -0.5
-  ) +
-  geom_text(
-    stat = "summary", 
-    fun = "mean", 
-    aes(label = round(..y.., digits = 3)),
-    position = position_dodge(width = 0.9),
-    vjust = -0.5
-  ) +
-  labs(
-    x = "Mind Wandering Assignment",
-    y = "Average False Alarms"
-  ) +
-  ggtitle(str_wrap("Average False Alarms Between Mind Wandering Assignment and Probe Conditions", width = 70)) +
-  theme_minimal() +
-  theme(plot.title = element_text(margin = margin(b = 5)))  # Adjust the bottom margin of the title
-FAbyGroup
-
-FAbyConditionsInt <- SARTfaFilt %>%
-  group_by(new_exp_column, MWassignment) %>%
-  summarize(mean_value = mean(FA))
 
 
 
 ```
 ```{r RQ Is Mind Wandering A Form of Task Switching}
 #######################################################################################################
-#Analyses of the RQ on Whether or not Mind Wandering is a Form of Task Switching
+#Analyses of the RQ on Whether or not Mind Wandering and Task Switching share a cognitive mechanism
 #######################################################################################################
 #Task Switching Analysis
 Experiment3TS <- df %>% filter(new_exp_column == "EXP3-TS")
@@ -1145,9 +1079,6 @@ summary(lm(correct~congruence*switch, data = Experiment3TS))
 summary(lm(correct~MWassignment*congruence, data = Experiment3TS))
 summary(lm(correct~MWassignment, data = Experiment3TS))
 
-summary(lm(paid_response~MWassignment, data = Experiment3TS))
-
-
 
 PaidbyMWExp3TS <- ggplot(MWTS_groupings, aes(x = MWassignment, y = paid_response, fill = MWassignment)) +
   stat_summary(
@@ -1168,13 +1099,16 @@ PaidbyMWExp3TS <- ggplot(MWTS_groupings, aes(x = MWassignment, y = paid_response
     x = "Mind Wandering Assignment",
     y = "Average Amount to be Paid"
   ) +
-  ggtitle(str_wrap("Average Amount of Payment Required to Continue Between Mind Wandering Assignment and Probe Conditions", width = 70)) +
+  ggtitle(str_wrap("Average Amount of Payment Required to Continue Between Mind Wandering Assignment Conditions", width = 70)) +
   theme_minimal() +
   theme(plot.title = element_text(margin = margin(b = 5)))  # Adjust the bottom margin of the title
 
 
 # Print the plot
 PaidbyMWExp3TS
+
+summary(lm(paid_response~MWassignment, data = Experiment3TS))
+
 
 #SART Processing
 Experiment3SART <- df %>% filter(new_exp_column == "EXP3-SART")
@@ -1387,6 +1321,7 @@ LatencyExp3 <- ggplot(Experiment3ACCfiltGoCon, aes(x = new_exp_column, y = laten
 # Print the plot
 LatencyExp3
 
+###What does this look like with the balanced integration score?
 
 
 ```
