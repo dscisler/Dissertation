@@ -3,14 +3,13 @@ title: "ProcessingAndAnalysisScript_JAN2024"
 author: "Dean Cisler"
 date: "`r Sys.Date()`"
 output:
-  word_document: default
+  word_document: 
+    toc: true
   html_document: default
   pdf_document: default
 ---
 
-This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
-
-Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+ 
 
 ```{r}
 #Libraries
@@ -161,10 +160,10 @@ create_checksum <- function(dataframe) {
 }
 
 # Create MD5 checksum for the example dataframe
-MindWanderingDissertation <- create_checksum(CompleteDataSet)
+#MindWanderingDissertation <- create_checksum(CompleteDataSet)
 
 # Print the checksum
-print(MindWanderingDissertation)
+#print(MindWanderingDissertation)
 
 #write.csv(CompleteDataSet, "C:/Users/Cisler/Desktop/Data/For Analysis/CompleteDataSet.csv")
 
@@ -252,6 +251,7 @@ rm(condition1, condition2, condition3, condition4, condition5, condition6, condi
 
 
 
+
 ```
 
 
@@ -266,9 +266,32 @@ library(ggpubr)
 library(vcd)
 library(ggmosaic)
 library(gridExtra)
+library(lme4)
+library(lmerTest)
+source('https://github.com/pablobernabeu/language-sensorimotor-simulation-PhD-thesis/raw/main/R_functions/frequentist_model_table.R')
 
 #Separate Out EXP1 and EXP2 into different dataframes
 EXP1df <- df %>% filter(grepl("^EXP1", new_exp_column, ignore.case = TRUE))
+
+EXP1MWcatch <- df %>% filter(grepl("MWcatch", trialcode, ignore.case = TRUE))
+EXP1MWcatch$response <- as.numeric(EXP1MWcatch$response)
+EXP1MWcatchaverages <- aggregate(response ~ subject, EXP1MWcatch, mean)
+EXP1MWcatchaverages <- EXP1MWcatchaverages %>%
+  rename(MWcatch_response = response)
+
+EXP1MWonTask <- df %>% filter(grepl("MWonTask", trialcode, ignore.case = TRUE))
+EXP1MWonTask$response <- as.numeric(EXP1MWonTask$response)
+EXP1MWonTaskaverages <- aggregate(response ~ subject, EXP1MWonTask, mean)
+EXP1MWonTaskaverages <- EXP1MWonTaskaverages %>%
+  rename(MWonTask_response = response)
+
+EXP1MWother <- df %>% filter(grepl("MWother", trialcode, ignore.case = TRUE))
+EXP1MWother$response <- as.numeric(EXP1MWother$response)
+EXP1MWotheraverages <- aggregate(response ~ subject, EXP1MWother, mean)
+EXP1MWotheraverages <- EXP1MWotheraverages %>%
+  rename(MWother_response = response)
+
+EXP1MWcatchTrialsAverages <- merge(merge(EXP1MWcatchaverages, EXP1MWonTaskaverages, by = "subject"), EXP1MWotheraverages, by = "subject")
 
 EXP2df <- df %>% filter(grepl("^EXP2", new_exp_column, ignore.case = TRUE))
 
@@ -286,6 +309,7 @@ EXP2probe <- EXP2df %>% dplyr::select(subject, new_exp_column, new_cond_column, 
 EXP2probe <- EXP2probe[!duplicated(EXP2probe$subject), ]
 
 ProbeRespons <- rbind(EXP1probe, EXP2probe)
+
 
 #
 PersonProbeCount <- ProbeRespons %>% group_by(subject, new_exp_column, new_cond_column) %>% count(probe_response)
@@ -361,13 +385,13 @@ process_subject <- function(subject_data) {
 results <- sapply(split(ProbeRespons, ProbeRespons$subject), process_subject)
 
 # Display the results
-result_data <- data.frame(subject = names(results), MWassignment = results)
-print(result_data)
-result_data$subject <- as.integer(result_data$subject)
+MWresult_dataExp1Exp2 <- data.frame(subject = names(results), MWer = results)
+print(MWresult_dataExp1Exp2)
+MWresult_dataExp1Exp2$subject <- as.integer(MWresult_dataExp1Exp2$subject)
 
 
 
-MWassign <- left_join(ProbeRespons, result_data, by = 'subject')
+MWassign <- left_join(ProbeRespons, MWresult_dataExp1Exp2, by = 'subject')
 
 Exp1EnjoyAnalysis <- MWassign %>% filter(new_exp_column == 'EXP1')
 Exp1EnjoyAnalysis <- Exp1EnjoyAnalysis %>% filter(new_cond_column == 'Enjoy')
@@ -394,7 +418,7 @@ exp1exp2Analysis <- rbind(Exp1EnjoyAnalysis, Exp2EnjoyAnalysis, Exp1NotEnjoyAnal
 exp1exp2Analysis2 <- exp1exp2Analysis
 exp1exp2Analysis2$new_exp_column <- as.factor(exp1exp2Analysis2$new_exp_column)
 exp1exp2Analysis2$new_cond_column <- as.factor(exp1exp2Analysis2$new_cond_column)
-exp1exp2Analysis2$MWassignment <- as.factor(exp1exp2Analysis2$MWassignment)
+exp1exp2Analysis2$MWer <- as.factor(exp1exp2Analysis2$MWer)
 
 # exp1Analysis <- exp1exp2Analysis2
 # exp1Analysis <- exp1Analysis %>% filter(new_exp_colum == 'exp1')
@@ -423,9 +447,9 @@ SARTexp2 <- df %>% filter(new_exp_column == "EXP2")
 SARTexp2 <- SARTexp2 %>% filter(blockcode == "SART")
 
 SARTexp1exp2 <- rbind(SARTexp1, SARTexp2)
-SARTexp1exp2 <- left_join(SARTexp1exp2, result_data, by = "subject")
+SARTexp1exp2 <- left_join(SARTexp1exp2, MWresult_dataExp1Exp2, by = "subject")
 
-SARTexp1exp2 <- SARTexp1exp2 %>% filter(MWassignment != "Tie")
+SARTexp1exp2 <- SARTexp1exp2 %>% filter(MWer != "Tie")
 
 #NASA-TLX Transformations
 SARTexp1exp2 <- SARTexp1exp2 %>%
@@ -464,9 +488,37 @@ SARTfaFilt <- SARTexp1exp2 %>% filter(trialtype == "Go")
 SARTaccFilt <- SARTexp1exp2 %>% filter(trialtype == "NoGo")
 SARTmissFilt <- SARTexp1exp2 %>% filter(trialtype == "NoGo")
 
+FAmean <- aggregate(FA ~ subject + new_exp_column + new_cond_column, SARTfaFilt, mean)
+Hitmean <- aggregate(correct ~ subject + new_exp_column + new_cond_column, SARTaccFilt, mean)
+Missmean <- aggregate(CR ~ subject + new_exp_column + new_cond_column, SARTrtFilt, mean)
+RTmean <- aggregate(latency ~ subject + new_exp_column + new_cond_column, SARTrtFilt, mean)
+
+QualCheck <- left_join(Hitmean, FAmean, by = "subject") %>%
+  left_join(Missmean, by = "subject") %>%
+  left_join(RTmean, by = "subject")
+QualCheckExp1 <- QualCheck %>% filter(new_exp_column.x == "EXP1")
+#Subject 566606496 is an outlier.  It appears they just kept hitting the space bar.  This person should have been excluded.  For some reason, they made it through my exclusion checks
+QualCheck2 <- SARTexp1exp2 %>% filter(subject == "566606496")
+
+QualCheckExp2 <- QualCheck %>% filter(new_exp_column.x == "EXP2")
+QualCheck2_2 <- SARTexp1exp2 %>% filter(subject == "197955474")
+#Nothing is overtly odd about their data.  My only concern is that the datafile was recorded at 2:30 am.  They could be fatigued.
+
 ###Analysis of RT for SART
-RTlm <- lm(latency~new_exp_column*new_cond_column, data = SARTrtFilt)
-summary(RTlm)
+# RTlm <- lm(latency~new_exp_column*new_cond_column, data = SARTrtFilt)
+# summary(RTlm)
+
+RTlm <- lmer(latency~new_exp_column*new_cond_column + (1|subject), data = SARTrtFilt)
+RTlmConfInt <- confint(RTlm)
+RTLMERresults <- summary(RTlm)
+frequentist_model_table(RTLMERresults, RTlmConfInt,
+ # Replace colons in the names of interactions with times symbols
+  interaction_symbol_x = TRUE, 
+  
+  #Rename Title, for No title replace text with NULL
+  caption = "Latency by Probe Placement and Enjoyment Condition")
+
+
 
 RTbyGroup <- ggplot(SARTrtFilt, aes(x = new_cond_column, y = latency, fill = new_exp_column)) +
     stat_summary(
@@ -498,8 +550,18 @@ RTbyConditionsInt <- SARTrtFilt %>%
 
 
 #####Analysis of ACC for SART NoGo Trials
-ACClm <- lm(correct ~ new_exp_column*new_cond_column, data = SARTaccFilt)
-summary(ACClm)
+# ACClm <- lm(correct ~ new_exp_column*new_cond_column, data = SARTaccFilt)
+# summary(ACClm)
+
+ACClm <- lmer(correct ~ new_exp_column*new_cond_column + (1|subject), data = SARTaccFilt)
+ACClmConfInt <- confint(ACClm)
+ACCLMERresults <- summary(ACClm)
+frequentist_model_table(ACCLMERresults, ACClmConfInt,
+ # Replace colons in the names of interactions with times symbols
+  interaction_symbol_x = TRUE, 
+  
+  #Rename Title, for No title replace text with NULL
+  caption = "Accuracy to No Go Trials by Probe Placement and Enjoyment Condition")
 
 ACCbyGroup <- ggplot(SARTaccFilt, aes(x = new_cond_column, y = correct, fill = new_exp_column)) +
   stat_summary(
@@ -528,8 +590,22 @@ SARTfaFilt <- SARTrtFilt
 SARTmissFILT <- SARTaccFilt
 
 #Remember*** I am interpreting the target (No Go trials) as hits.  So withholding a response on a Go trial would be an FA
-FAlm <- lm(FA ~ new_exp_column*new_cond_column, data = SARTfaFilt)
-summary(FAlm)
+# FAlm <- lm(FA ~ new_exp_column*new_cond_column, data = SARTfaFilt)
+# summary(FAlm)
+
+FAlm <- lmer(FA ~ new_exp_column*new_cond_column + (1|subject), data = SARTfaFilt)
+FAlmConfInt <- confint(FAlm)
+FALMERresults <- summary(FAlm)
+frequentist_model_table(FALMERresults, FAlmConfInt,
+ # Replace colons in the names of interactions with times symbols
+  interaction_symbol_x = TRUE, 
+  
+  #Rename Title, for No title replace text with NULL
+  caption = "False Alarms by Probe Placement and Enjoyment Condition")
+
+
+
+
 
 FAbyGroup <- ggplot(SARTfaFilt, aes(x = new_cond_column, y = FA, fill = new_exp_column)) +
   stat_summary(
@@ -557,6 +633,41 @@ FAbyGroup
 FAbyConditionsInt <- SARTfaFilt %>%
   group_by(new_exp_column, new_cond_column) %>%
   summarize(mean_value = mean(FA))
+
+FAbyConditionsInt
+
+ggplot(SARTfaFilt, aes(x = FA, fill = new_cond_column)) +
+  geom_density(alpha=0.2)
+
+
+FAbySub <- SARTfaFilt %>% filter(new_exp_column == 'EXP1')
+
+ 
+ggplot(FAbySub, aes(x = FA, fill = new_cond_column)) +
+  geom_density(alpha=0.2)
+
+FAbySub <- ggplot(SARTfaFilt, aes(x = subject, y = FA, fill = new_cond_column)) +
+  stat_summary(
+    fun = "mean", 
+    geom = "bar", 
+    position = position_dodge(width = 0.9),
+    aes(label = round(..y.., digits = 2)),
+    vjust = -0.5
+  ) +
+  geom_text(
+    stat = "summary", 
+    fun = "mean", 
+    aes(label = round(..y.., digits = 3)),
+    position = position_dodge(width = 0.9),
+    vjust = -0.5
+  ) +
+  labs(
+   x = "Enjoyment Condition",
+    y = "Average False Alarms",
+    title = "Average False Alarms of Go Trials Between Enjoyment and Probe Conditions"
+  ) +
+  theme_minimal()
+FAbySub
 
 
 MISSbyGroup <- ggplot(SARTaccFilt, aes(x = new_cond_column, y = miss, fill = new_exp_column)) +
@@ -621,394 +732,7 @@ CRbyConditionsInt <- SARTfaFilt %>%
 
 ```
 
-```{r Analysis of RQ Is MW a Form of Cognitive Restoration}
-# ##################################################################################################################
-# #These are my analyses for Post Task Surveys
-# ##################################################################################################################
-#Post Task Survey Analyses for exps 1 and 2 to address RQ1.  Should I exclude the data collected from the post-task condition or keep both in?
-library(corrr)
-library(ggcorrplot)
-library(FactoMineR)
-library(psych)
-library(GPArotation)
 
-##########MW Response Analysis#######################
-
-PostSurveys <- SARTexp1exp2[!duplicated(SARTexp1exp2$subject), ]
-
-PostSurveys$difficulty_responseNum <- ifelse(PostSurveys$difficulty_response == 'Very Difficult', 1, ifelse(PostSurveys$difficulty_response == 'Difficult', 2, ifelse(PostSurveys$difficulty_response == 'Neither Easy/Difficult', 3, ifelse(PostSurveys$difficulty_response == 'Easy', 4, ifelse(PostSurveys$difficulty_response == 'Very Easy', 5, 999)))))
-
-
-PostSurveys$interest_responseNum <- ifelse(PostSurveys$interest_response == 'Not at all interesting', 1, ifelse(PostSurveys$interest_response == 'A little interesting', 2, ifelse(PostSurveys$interest_response == 'Somewhat interesting', 3, ifelse(PostSurveys$interest_response == 'Pretty interesting', 4, ifelse(PostSurveys$interest_response == 'Highly Interesting', 5, 999)))))
-
-ggplot(PostSurveys, aes(x = paid_response, fill = new_exp_column)) +
-  geom_density(alpha=0.2)
-
-
-MWprobePlace <- ggplot(data = PostSurveys, aes(x = new_exp_column, y = paid_response, fill = MWassignment)) +
-  geom_bar(stat = "summary", fun = "mean", position = "dodge") + 
-  scale_fill_manual(values = c("Yes" = "blue", "No" = "red"))
-MWprobePlace
-
-
-MWprobePlace.labs <- MWprobePlace + labs(title = "Average Amount to be Paid by Probe Placement", x = "Probe Placement", y = "Average Amount to be Paid") + scale_x_discrete(limit = c("EXP1", "EXP2"), labels = c("Interrupting Probe","Retrospective Probe"))
-MWprobePlace.labs
-
-PaidMWlmProbe <- lm(paid_response~new_exp_column*MWassignment, data = PostSurveys)
-summary(PaidMWlmProbe)
-
-PaidLmresult <- PostSurveys %>%
-  group_by(new_exp_column) %>%
-  summarize(mean_value = mean(paid_response))
-
-# Print the result
-print(PaidLmresult)
-
-#colnames(PostSurveys)
-
-pcadf <- PostSurveys[, c(102, 103, 104, 105, 106, 107, 112, 113)]
-
-model = fa(pcadf, 2, rotate="varimax")
-model
-model$loadings
-model$scores
-model$r.scores
-modelResults <- model$scores
-model$scor
-EFAanalysis <- cbind(PostSurveys, modelResults)
-summary(lm(MR1 ~ new_exp_column*MWassignment, data= EFAanalysis))
-summary(lm(MR2 ~ new_exp_column*MWassignment, data= EFAanalysis))
-
-ggplot(EFAanalysis, aes(x = MR1, color = MWassignment)) +
-   geom_density()
-
-table(EFAanalysis$difficulty_responseNum)
-table(EFAanalysis$interest_responseNum)
-table(EFAanalysis$effort_response_coded)
-table(EFAanalysis$physicaldemand_response_coded)
-table(EFAanalysis$temporaldemand_response_coded)
-table(EFAanalysis$performance_response_coded)
-table(EFAanalysis$frustration_response_coded)
-table(EFAanalysis$MWassignment)
-
-#Tables for the raw EFA scores based on MW assignment and MW assignment by Enjoyable condition
-MWAssignmentByFactorLoadings <- data.frame(
-  no = ifelse(EFAanalysis$MWassignment == "No", EFAanalysis$MR1, NA),
-  yes = ifelse(EFAanalysis$MWassignment == "Yes", EFAanalysis$MR1, NA)
-)
-
-MWAssignmentByFactorLoadings
-
-MWAssignmentAndEnjoyableConditionByFactorLoadings <- data.frame(
-  NoMWandEnjoy = ifelse(EFAanalysis$MWassignment == "No" & EFAanalysis$new_cond_column == "Enjoy", EFAanalysis$MR1, NA),
-  NoMWandNotEnjoy = ifelse(EFAanalysis$MWassignment == "No" & EFAanalysis$new_cond_column == "NotEnjoy", EFAanalysis$MR1, NA),
-  YesMWandEnjoy = ifelse(EFAanalysis$MWassignment == "Yes" & EFAanalysis$new_cond_column == "Enjoy", EFAanalysis$MR1, NA),
-  YesMWandNotEnjoy = ifelse(EFAanalysis$MWassignment == "Yes" & EFAanalysis$new_cond_column == "NotEnjoy", EFAanalysis$MR1, NA)
-)
-
-MWAssignmentAndEnjoyableConditionByFactorLoadings
-
-averages <- colMeans(MWAssignmentAndEnjoyableConditionByFactorLoadings, na.rm = TRUE)
-averages <- data.frame(Average = averages)
-averages
-
-
-#Tables for the raw Mental Demand Coded Scores by MW assignment and Enjoyment Condition
-MWAssignmentByMentalDemand <- data.frame(
-  no = ifelse(EFAanalysis$MWassignment == "No", EFAanalysis$mentaldemand_response_coded, NA),
-  yes = ifelse(EFAanalysis$MWassignment == "Yes", EFAanalysis$mentaldemand_response_coded, NA)
-)
-
-MWAssignmentByMentalDemand
-
-MWAssignmentAndEnjoyableConditionByMentalDemand <- data.frame(
-  NoMWandEnjoy = ifelse(EFAanalysis$MWassignment == "No" & EFAanalysis$new_cond_column == "Enjoy", EFAanalysis$mentaldemand_response_coded, NA),
-  NoMWandNotEnjoy = ifelse(EFAanalysis$MWassignment == "No" & EFAanalysis$new_cond_column == "NotEnjoy", EFAanalysis$mentaldemand_response_coded, NA),
-  YesMWandEnjoy = ifelse(EFAanalysis$MWassignment == "Yes" & EFAanalysis$new_cond_column == "Enjoy", EFAanalysis$mentaldemand_response_coded, NA),
-  YesMWandNotEnjoy = ifelse(EFAanalysis$MWassignment == "Yes" & EFAanalysis$new_cond_column == "NotEnjoy", EFAanalysis$mentaldemand_response_coded, NA)
-)
-
-MWAssignmentAndEnjoyableConditionByMentalDemand
-
-MentalDemandaverages <- colMeans(MWAssignmentAndEnjoyableConditionByMentalDemand, na.rm = TRUE)
-MentalDemandaverages <- data.frame(Average = MentalDemandaverages)
-MentalDemandaverages
-
-ggplot(EFAanalysis, aes(x = mentaldemand_response_coded)) +
-  geom_histogram(binwidth = 5, fill = "skyblue", color = "black", alpha = 0.7) +
-  labs(title = "Histogram of Mental Demand", x = "Value", y = "Frequency") +
-  theme_minimal()
-
-ggplot(EFAanalysis, aes(x = mentaldemand_response_coded, color = MWassignment)) +
-   geom_density()
-
-
-#Tables for the raw Physical Demand Coded Scores by MW assignment and Enjoyment Condition
-MWAssignmentByPhysicalDemand <- data.frame(
-  no = ifelse(EFAanalysis$MWassignment == "No", EFAanalysis$physicaldemand_response_coded, NA),
-  yes = ifelse(EFAanalysis$MWassignment == "Yes", EFAanalysis$physicaldemand_response_coded, NA)
-)
-
-MWAssignmentByPhysicalDemand
-
-MWAssignmentAndEnjoyableConditionByPhysicalDemand <- data.frame(
-  NoMWandEnjoy = ifelse(EFAanalysis$MWassignment == "No" & EFAanalysis$new_cond_column == "Enjoy", EFAanalysis$physicaldemand_response_coded, NA),
-  NoMWandNotEnjoy = ifelse(EFAanalysis$MWassignment == "No" & EFAanalysis$new_cond_column == "NotEnjoy", EFAanalysis$physicaldemand_response_coded, NA),
-  YesMWandEnjoy = ifelse(EFAanalysis$MWassignment == "Yes" & EFAanalysis$new_cond_column == "Enjoy", EFAanalysis$physicaldemand_response_coded, NA),
-  YesMWandNotEnjoy = ifelse(EFAanalysis$MWassignment == "Yes" & EFAanalysis$new_cond_column == "NotEnjoy", EFAanalysis$physicaldemand_response_coded, NA)
-)
-
-MWAssignmentAndEnjoyableConditionByPhysicalDemand
-
-PhysicalDemandaverages <- colMeans(MWAssignmentAndEnjoyableConditionByPhysicalDemand, na.rm = TRUE)
-PhysicalDemandaverages <- data.frame(Average = PhysicalDemandaverages)
-PhysicalDemandaverages
-
-ggplot(EFAanalysis, aes(x = physicaldemand_response_coded)) +
-  geom_histogram(binwidth = 5, fill = "skyblue", color = "black", alpha = 0.7) +
-  labs(title = "Histogram of Physical Demand", x = "Value", y = "Frequency") +
-  theme_minimal()
-
-ggplot(EFAanalysis, aes(x = physicaldemand_response_coded, color = MWassignment)) +
-  geom_density()
-
-
-#Tables for the raw Temporal Demand Coded Scores by MW assignment and Enjoyment Condition
-MWAssignmentBytemporaldemand <- data.frame(
-  no = ifelse(EFAanalysis$MWassignment == "No", EFAanalysis$temporaldemand_response_coded, NA),
-  yes = ifelse(EFAanalysis$MWassignment == "Yes", EFAanalysis$temporaldemand_response_coded, NA)
-)
-
-MWAssignmentBytemporaldemand
-
-MWAssignmentAndEnjoyableConditionBytemporaldemand <- data.frame(
-  NoMWandEnjoy = ifelse(EFAanalysis$MWassignment == "No" & EFAanalysis$new_cond_column == "Enjoy", EFAanalysis$temporaldemand_response_coded, NA),
-  NoMWandNotEnjoy = ifelse(EFAanalysis$MWassignment == "No" & EFAanalysis$new_cond_column == "NotEnjoy", EFAanalysis$temporaldemand_response_coded, NA),
-  YesMWandEnjoy = ifelse(EFAanalysis$MWassignment == "Yes" & EFAanalysis$new_cond_column == "Enjoy", EFAanalysis$temporaldemand_response_coded, NA),
-  YesMWandNotEnjoy = ifelse(EFAanalysis$MWassignment == "Yes" & EFAanalysis$new_cond_column == "NotEnjoy", EFAanalysis$temporaldemand_response_coded, NA)
-)
-
-MWAssignmentAndEnjoyableConditionBytemporaldemand
-
-temporaldemandaverages <- colMeans(MWAssignmentAndEnjoyableConditionBytemporaldemand, na.rm = TRUE)
-temporaldemandaverages <- data.frame(Average = temporaldemandaverages)
-temporaldemandaverages
-
-ggplot(EFAanalysis, aes(x = temporaldemand_response_coded)) +
-  geom_histogram(binwidth = 5, fill = "skyblue", color = "black", alpha = 0.7) +
-  labs(title = "Histogram of Temporal Demand", x = "Value", y = "Frequency") +
-  theme_minimal()
-
-ggplot(EFAanalysis, aes(x = temporaldemand_response_coded, color = MWassignment)) +
-  geom_density()
-
-
-#Tables for the raw Performance Coded Scores by MW assignment and Enjoyment Condition
-MWAssignmentByperformance <- data.frame(
-  no = ifelse(EFAanalysis$MWassignment == "No", EFAanalysis$performance_response_coded, NA),
-  yes = ifelse(EFAanalysis$MWassignment == "Yes", EFAanalysis$performance_response_coded, NA)
-)
-
-MWAssignmentByperformance
-
-MWAssignmentAndEnjoyableConditionByperformance <- data.frame(
-  NoMWandEnjoy = ifelse(EFAanalysis$MWassignment == "No" & EFAanalysis$new_cond_column == "Enjoy", EFAanalysis$performance_response_coded, NA),
-  NoMWandNotEnjoy = ifelse(EFAanalysis$MWassignment == "No" & EFAanalysis$new_cond_column == "NotEnjoy", EFAanalysis$performance_response_coded, NA),
-  YesMWandEnjoy = ifelse(EFAanalysis$MWassignment == "Yes" & EFAanalysis$new_cond_column == "Enjoy", EFAanalysis$performance_response_coded, NA),
-  YesMWandNotEnjoy = ifelse(EFAanalysis$MWassignment == "Yes" & EFAanalysis$new_cond_column == "NotEnjoy", EFAanalysis$performance_response_coded, NA)
-)
-
-MWAssignmentAndEnjoyableConditionByperformance
-
-performanceaverages <- colMeans(MWAssignmentAndEnjoyableConditionByperformance, na.rm = TRUE)
-performanceaverages <- data.frame(Average = performanceaverages)
-performanceaverages
-
-ggplot(EFAanalysis, aes(x = performance_response_coded)) +
-  geom_histogram(binwidth = 5, fill = "skyblue", color = "black", alpha = 0.7) +
-  labs(title = "Histogram of Performance Response", x = "Value", y = "Frequency") +
-  theme_minimal()
-
-ggplot(EFAanalysis, aes(x = performance_response_coded, color = MWassignment)) +
-  geom_density()
-
-
-#Tables for the raw Effort Coded Scores by MW assignment and Enjoyment Condition
-MWAssignmentByeffort <- data.frame(
-  no = ifelse(EFAanalysis$MWassignment == "No", EFAanalysis$effort_response_coded, NA),
-  yes = ifelse(EFAanalysis$MWassignment == "Yes", EFAanalysis$effort_response_coded, NA)
-)
-
-MWAssignmentByeffort
-
-MWAssignmentAndEnjoyableConditionByeffort <- data.frame(
-  NoMWandEnjoy = ifelse(EFAanalysis$MWassignment == "No" & EFAanalysis$new_cond_column == "Enjoy", EFAanalysis$effort_response_coded, NA),
-  NoMWandNotEnjoy = ifelse(EFAanalysis$MWassignment == "No" & EFAanalysis$new_cond_column == "NotEnjoy", EFAanalysis$effort_response_coded, NA),
-  YesMWandEnjoy = ifelse(EFAanalysis$MWassignment == "Yes" & EFAanalysis$new_cond_column == "Enjoy", EFAanalysis$effort_response_coded, NA),
-  YesMWandNotEnjoy = ifelse(EFAanalysis$MWassignment == "Yes" & EFAanalysis$new_cond_column == "NotEnjoy", EFAanalysis$effort_response_coded, NA)
-)
-
-MWAssignmentAndEnjoyableConditionByeffort
-
-effortaverages <- colMeans(MWAssignmentAndEnjoyableConditionByeffort, na.rm = TRUE)
-effortaverages <- data.frame(Average = effortaverages)
-effortaverages
-
-ggplot(EFAanalysis, aes(x = effort_response_coded)) +
-  geom_histogram(binwidth = 5, fill = "skyblue", color = "black", alpha = 0.7) +
-  labs(title = "Histogram of Effort Response", x = "Value", y = "Frequency") +
-  theme_minimal()
-
-ggplot(EFAanalysis, aes(x = effort_response_coded, color = MWassignment)) +
-  geom_density()
-
-
-#Tables for the raw Frustration Coded Scores by MW assignment and Enjoyment Condition
-MWAssignmentByfrustration <- data.frame(
-  no = ifelse(EFAanalysis$MWassignment == "No", EFAanalysis$frustration_response_coded, NA),
-  yes = ifelse(EFAanalysis$MWassignment == "Yes", EFAanalysis$frustration_response_coded, NA)
-)
-
-MWAssignmentByfrustration
-
-MWAssignmentAndEnjoyableConditionByfrustration <- data.frame(
-  NoMWandEnjoy = ifelse(EFAanalysis$MWassignment == "No" & EFAanalysis$new_cond_column == "Enjoy", EFAanalysis$frustration_response_coded, NA),
-  NoMWandNotEnjoy = ifelse(EFAanalysis$MWassignment == "No" & EFAanalysis$new_cond_column == "NotEnjoy", EFAanalysis$frustration_response_coded, NA),
-  YesMWandEnjoy = ifelse(EFAanalysis$MWassignment == "Yes" & EFAanalysis$new_cond_column == "Enjoy", EFAanalysis$frustration_response_coded, NA),
-  YesMWandNotEnjoy = ifelse(EFAanalysis$MWassignment == "Yes" & EFAanalysis$new_cond_column == "NotEnjoy", EFAanalysis$frustration_response_coded, NA)
-)
-
-MWAssignmentAndEnjoyableConditionByfrustration
-
-frustrationaverages <- colMeans(MWAssignmentAndEnjoyableConditionByfrustration, na.rm = TRUE)
-frustrationaverages <- data.frame(Average = frustrationaverages)
-frustrationaverages
-
-ggplot(EFAanalysis, aes(x = frustration_response_coded)) +
-  geom_histogram(binwidth = 5, fill = "skyblue", color = "black", alpha = 0.7) +
-  labs(title = "Histogram of Frustration Response", x = "Value", y = "Frequency") +
-  theme_minimal()
-
-ggplot(EFAanalysis, aes(x = frustration_response_coded, color = MWassignment)) +
-  geom_density()
-
-
-#Tables for the raw Difficulty Response Scores by MW assignment and Enjoyment Condition
-MWAssignmentBydifficulty <- data.frame(
-  no = ifelse(EFAanalysis$MWassignment == "No", EFAanalysis$difficulty_responseNum, NA),
-  yes = ifelse(EFAanalysis$MWassignment == "Yes", EFAanalysis$difficulty_responseNum, NA)
-)
-
-MWAssignmentBydifficulty
-
-MWAssignmentAndEnjoyableConditionBydifficulty <- data.frame(
-  NoMWandEnjoy = ifelse(EFAanalysis$MWassignment == "No" & EFAanalysis$new_cond_column == "Enjoy", EFAanalysis$difficulty_responseNum, NA),
-  NoMWandNotEnjoy = ifelse(EFAanalysis$MWassignment == "No" & EFAanalysis$new_cond_column == "NotEnjoy", EFAanalysis$difficulty_responseNum, NA),
-  YesMWandEnjoy = ifelse(EFAanalysis$MWassignment == "Yes" & EFAanalysis$new_cond_column == "Enjoy", EFAanalysis$difficulty_responseNum, NA),
-  YesMWandNotEnjoy = ifelse(EFAanalysis$MWassignment == "Yes" & EFAanalysis$new_cond_column == "NotEnjoy", EFAanalysis$difficulty_responseNum, NA)
-)
-
-MWAssignmentAndEnjoyableConditionBydifficulty
-
-difficultyaverages <- colMeans(MWAssignmentAndEnjoyableConditionBydifficulty, na.rm = TRUE)
-difficultyaverages <- data.frame(Average = difficultyaverages)
-difficultyaverages
-
-ggplot(EFAanalysis, aes(x = difficulty_responseNum)) +
-  geom_histogram(binwidth = 1, fill = "skyblue", color = "black", alpha = 0.7) +
-  labs(title = "Histogram of Difficulty Response", x = "Value", y = "Frequency") +
-  theme_minimal()
-
-ggplot(EFAanalysis, aes(x = difficulty_responseNum, color = MWassignment)) +
-  geom_density()
-
-
-#Tables for the raw Interest Response Scores by MW assignment and Enjoyment Condition
-MWAssignmentByinterest <- data.frame(
-  no = ifelse(EFAanalysis$MWassignment == "No", EFAanalysis$interest_responseNum, NA),
-  yes = ifelse(EFAanalysis$MWassignment == "Yes", EFAanalysis$interest_responseNum, NA)
-)
-
-MWAssignmentByinterest
-
-MWAssignmentAndEnjoyableConditionByinterest <- data.frame(
-  NoMWandEnjoy = ifelse(EFAanalysis$MWassignment == "No" & EFAanalysis$new_cond_column == "Enjoy", EFAanalysis$interest_responseNum, NA),
-  NoMWandNotEnjoy = ifelse(EFAanalysis$MWassignment == "No" & EFAanalysis$new_cond_column == "NotEnjoy", EFAanalysis$interest_responseNum, NA),
-  YesMWandEnjoy = ifelse(EFAanalysis$MWassignment == "Yes" & EFAanalysis$new_cond_column == "Enjoy", EFAanalysis$interest_responseNum, NA),
-  YesMWandNotEnjoy = ifelse(EFAanalysis$MWassignment == "Yes" & EFAanalysis$new_cond_column == "NotEnjoy", EFAanalysis$interest_responseNum, NA)
-)
-
-MWAssignmentAndEnjoyableConditionByinterest
-
-interestaverages <- colMeans(MWAssignmentAndEnjoyableConditionByinterest, na.rm = TRUE)
-interestaverages <- data.frame(Average = interestaverages)
-interestaverages
-
-ggplot(EFAanalysis, aes(x = interest_responseNum, color = MWassignment)) +
-  geom_histogram(binwidth = 1, fill = "skyblue", color = "black", alpha = 0.7) +
-  labs(title = "Histogram of Interest Response", x = "Value", y = "Frequency") +
-  theme_minimal()
-
-ggplot(EFAanalysis, aes(x = interest_responseNum, color = MWassignment)) +
-  geom_density()
-
-
-#GTQ Analysis
-ggplot(EFAanalysis, aes(x = GTQ_response)) +
-  geom_histogram(binwidth = 5, fill = "skyblue", color = "black", alpha = 0.7) +
-  labs(title = "Histogram of GTQ", x = "Value", y = "Frequency") +
-  theme_minimal()
-
-ggplot(EFAanalysis, aes(x = GTQ_response, color = MWassignment)) +
-  geom_density()
-
-summary(lm(GTQ_response ~ MWassignment*new_exp_column, data = EFAanalysis))
-
-
-ggplot(EFAanalysis, aes(x = MR1, color = MWassignment)) +
-  geom_density()
-
-Misery <- ggplot(EFAanalysis, aes(x = MWassignment, y = MR1, fill = MWassignment)) +
-  stat_summary(
-    fun = "mean", 
-    geom = "bar", 
-    position = position_dodge(width = 0.9),
-    aes(label = round(..y.., digits = 2)),
-    vjust = -0.5
-  ) +
-  geom_text(
-    stat = "summary", 
-    fun = "mean", 
-    aes(label = round(..y.., digits = 3)),
-    position = position_dodge(width = 0.9),
-    vjust = -0.5
-  ) +
-  labs(
-   x = "Enjoyment Condition",
-    y = "Average Effort Ratings",
-    title = "Average Effort Ratings Between Enjoyment Conditions"
-  ) +
-  theme_minimal()
-Misery
-
-
-
-#mentaldemand_response
-#effort_response
-#frustration_response
-#difficulty_response
-#interest_response
-#GTQ_response
-#Score NASA-TLX by subscale - score the way it is normally scored
-#Do regular EFA and extract first factor score - going to be confluence of those five variables. Take the scores for the first factor, should be a single outcome.  Compare probe by enjoyment analysis on score
-# PostSurveys$mentalDemandEffortagg <- rowMeans(PostSurveys[, c("mentaldemand_response", "effort_response")])
-# PostSurveys$physicalDemandPerformanceagg <- rowMeans(PostSurveys[, c("physicaldemand_response", "performance_response")])
-# PostSurveys$temporalDemandFrustrationagg <- rowMeans(PostSurveys[, c("temporaldemand_response", "frustration_response")])
-
-
-
-
-```
 ```{r RQ Is Mind Wandering A Form of Task Switching}
 #######################################################################################################
 #Analyses of the RQ on Whether or not Mind Wandering and Task Switching share a cognitive mechanism
@@ -1055,9 +779,9 @@ process_subject <- function(subject_data) {
 resultsTS <- sapply(split(TSMindWander, TSMindWander$subject), process_subject)
 
 # Display the results
-result_dataTS <- data.frame(subject = names(resultsTS), MWassignment = resultsTS)
+result_dataTS <- data.frame(subject = names(resultsTS), MWer = resultsTS)
 print(result_dataTS)
-result_dataTS %>% count(MWassignment)
+result_dataTS %>% count(MWer)
 result_dataTS$subject <- as.integer(result_dataTS$subject)
 
 
@@ -1065,22 +789,42 @@ Experiment3TS <- left_join(Experiment3TS, result_dataTS, by = "subject")
 
 MWTS_groupings <- Experiment3TS[!duplicated(Experiment3TS$subject), ]
 MWGroup_counts <- MWTS_groupings %>% 
-  group_by(MWassignment, new_exp_column, new_cond_column) %>% 
+  group_by(MWer, new_exp_column, new_cond_column) %>% 
   tally(name = "count_of_people")
 
 
-summary(lm(latency~MWassignment*congruence*switch, data = Experiment3TS))
-summary(lm(latency~congruence*switch, data = Experiment3TS))
-summary(lm(latency~MWassignment*switch, data = Experiment3TS))
-summary(lm(latency~MWassignment, data = Experiment3TS))
+TSlatency <- lmer(latency~MWer*congruence*switch + (1|subject), data = Experiment3TS)
+TSlatencyConfInt <- confint(TSlatency)
+TSlatencyLMERresults <- summary(TSlatency)
+frequentist_model_table(TSlatencyLMERresults, TSlatencyConfInt,
+ # Replace colons in the names of interactions with times symbols
+  interaction_symbol_x = TRUE, 
+  
+  #Rename Title, for No title replace text with NULL
+  caption = "Latency by Mind Wanderer, Congruenct and Switch Trials")
 
-summary(lm(correct~MWassignment*congruence*switch, data = Experiment3TS))
-summary(lm(correct~congruence*switch, data = Experiment3TS))
-summary(lm(correct~MWassignment*congruence, data = Experiment3TS))
-summary(lm(correct~MWassignment, data = Experiment3TS))
+
+summary(lmer(latency~congruence*switch + (1|subject), data = Experiment3TS))
+summary(lmer(latency~MWer*switch + (1|subject), data = Experiment3TS))
+summary(lmer(latency~MWer + (1|subject), data = Experiment3TS))
+
+TSacc <- lmer(correct~MWer*congruence*switch + (1|subject), data = Experiment3TS)
+TSaccConfInt <- confint(TSacc)
+TSaccLMERresults <- summary(TSacc)
+frequentist_model_table(TSaccLMERresults, TSaccConfInt,
+ # Replace colons in the names of interactions with times symbols
+  interaction_symbol_x = TRUE, 
+  
+  #Rename Title, for No title replace text with NULL
+  caption = "Accuracy by Mind Wanderer, Congruenct and Switch Trials")
 
 
-PaidbyMWExp3TS <- ggplot(MWTS_groupings, aes(x = MWassignment, y = paid_response, fill = MWassignment)) +
+summary(lmer(correct~congruence*switch + (1|subject), data = Experiment3TS))
+summary(lmer(correct~MWer*congruence + (1|subject), data = Experiment3TS))
+summary(lmer(correct~MWer + (1|subject), data = Experiment3TS))
+
+
+PaidbyMWExp3TS <- ggplot(MWTS_groupings, aes(x = MWer, y = paid_response, fill = MWer)) +
   stat_summary(
     fun = "mean", 
     geom = "bar", 
@@ -1106,8 +850,6 @@ PaidbyMWExp3TS <- ggplot(MWTS_groupings, aes(x = MWassignment, y = paid_response
 
 # Print the plot
 PaidbyMWExp3TS
-
-summary(lm(paid_response~MWassignment, data = Experiment3TS))
 
 
 #SART Processing
@@ -1140,9 +882,9 @@ process_subject <- function(subject_data) {
 resultsSART <- sapply(split(SARTMindWander, SARTMindWander$subject), process_subject)
 
 # Display the results
-result_dataSART <- data.frame(subject = names(resultsSART), MWassignment = resultsSART)
+result_dataSART <- data.frame(subject = names(resultsSART), MWer = resultsSART)
 print(result_dataSART)
-result_dataSART %>% count(MWassignment)
+result_dataSART %>% count(MWer)
 result_dataSART$subject <- as.integer(result_dataSART$subject)
 
 
@@ -1164,11 +906,35 @@ Exp3SARTfaFilt <- Experiment3SART %>% filter(trialtype == "Go")
 Exp3SARTaccFilt <- Experiment3SART %>% filter(trialtype == "NoGo")
 Exp3SARTmissFilt <- Experiment3SART %>% filter(trialtype == "NoGo")
 
+
+Exp3FAmean <- aggregate(FA ~ subject + new_exp_column + new_cond_column, Exp3SARTfaFilt, mean)
+Exp3Hitmean <- aggregate(correct ~ subject + new_exp_column + new_cond_column, Exp3SARTaccFilt, mean)
+Exp3Missmean <- aggregate(CR ~ subject + new_exp_column + new_cond_column, Exp3SARTrtFilt, mean)
+Exp3RTmean <- aggregate(latency ~ subject + new_exp_column + new_cond_column, Exp3SARTrtFilt, mean)
+
+Exp3QualCheck <- left_join(Exp3Hitmean, Exp3FAmean, by = "subject") %>%
+  left_join(Exp3Missmean, by = "subject") %>%
+  left_join(Exp3RTmean, by = "subject")
+# 538020870 did not respond to 50% of the task.  However, it isn't as if they walked away, they just randomly did not respond, and when they did respond,it was distributed between the no-go and go trials.  
+
 ###Analysis of RT for SART
-Exp3RTlm <- lm(latency~new_cond_column*MWassignment, data = Exp3SARTrtFilt)
+# Exp3RTlm <- lm(latency~new_cond_column*MWer, data = Exp3SARTrtFilt)
+# summary(Exp3RTlm)
+
+Exp3RTlm <- lmer(latency~new_cond_column * MWer + (1 | subject), data=Exp3SARTrtFilt)
 summary(Exp3RTlm)
 
-Exp3RTbyGroup <- ggplot(Exp3SARTrtFilt, aes(x = new_cond_column, y = latency, fill = MWassignment)) +
+Exp3RTConfInt <- confint(Exp3RTlm)
+Exp3RTLMERresults <- summary(Exp3RTlm)
+frequentist_model_table(Exp3RTLMERresults, Exp3RTConfInt,
+ # Replace colons in the names of interactions with times symbols
+  interaction_symbol_x = TRUE, 
+  
+  #Rename Title, for No title replace text with NULL
+  caption = "SART Latency by Mind Wanderer, Congruenct and Switch Trials")
+
+
+Exp3RTbyGroup <- ggplot(Exp3SARTrtFilt, aes(x = new_cond_column, y = latency, fill = MWer)) +
     stat_summary(
     fun = "mean", 
     geom = "bar", 
@@ -1193,15 +959,28 @@ Exp3RTbyGroup
 
 
 Exp3RTbyConditionsInt <- Exp3SARTrtFilt %>%
-  group_by(new_cond_column, MWassignment) %>%
+  group_by(new_cond_column, MWer) %>%
   summarize(mean_value = mean(latency))
 print(Exp3RTbyConditionsInt)
 
 #####Analysis of ACC for SART NoGo Trials
-Exp3ACClm <- lm(correct ~ new_cond_column*MWassignment, data = Exp3SARTaccFilt)
+# Exp3ACClm <- lm(correct ~ new_cond_column*MWer, data = Exp3SARTaccFilt)
+# summary(Exp3ACClm)
+
+Exp3ACClm <- lmer(correct~new_cond_column * MWer + (1 | subject), data=Exp3SARTaccFilt)
 summary(Exp3ACClm)
 
-Exp3ACCbyGroup <- ggplot(Exp3SARTaccFilt, aes(x = new_cond_column, y = correct, fill = MWassignment)) +
+Exp3ACCConfInt <- confint(Exp3ACClm)
+Exp3ACCLMERresults <- summary(Exp3ACClm)
+frequentist_model_table(Exp3ACCLMERresults, Exp3ACCConfInt,
+ # Replace colons in the names of interactions with times symbols
+  interaction_symbol_x = TRUE, 
+  
+  #Rename Title, for No title replace text with NULL
+  caption = "SART Accuracy by Mind Wanderer, Congruenct and Switch Trials")
+
+
+Exp3ACCbyGroup <- ggplot(Exp3SARTaccFilt, aes(x = new_cond_column, y = correct, fill = MWer)) +
   stat_summary(
     fun = "mean", 
     geom = "bar", 
@@ -1225,7 +1004,7 @@ Exp3ACCbyGroup <- ggplot(Exp3SARTaccFilt, aes(x = new_cond_column, y = correct, 
 Exp3ACCbyGroup
 
 Exp3ACCbyConditionsInt <- Exp3SARTaccFilt %>%
-  group_by(new_cond_column, MWassignment) %>%
+  group_by(new_cond_column, MWer) %>%
   summarize(mean_value = mean(correct))
 print(Exp3ACCbyConditionsInt)
 
@@ -1233,10 +1012,23 @@ Exp3SARTfaFilt <- Exp3SARTrtFilt
 Exp3SARTmissFILT <- Exp3SARTaccFilt
 
 #Remember*** I am interpreting the target (No Go trials) as hits.  So withholding a response on a Go trial would be an FA
-Exp3FAlm <- lm(FA ~ new_cond_column*MWassignment, data = Exp3SARTfaFilt)
+# Exp3FAlm <- lm(FA ~ new_cond_column*MWer, data = Exp3SARTfaFilt)
+# summary(Exp3FAlm)
+
+Exp3FAlm <- lmer(FA~new_cond_column * MWer + (1 | subject), data=Exp3SARTfaFilt)
 summary(Exp3FAlm)
 
-Exp3FAbyGroup <- ggplot(Exp3SARTfaFilt, aes(x = new_cond_column, y = FA, fill = MWassignment)) +
+Exp3FAConfInt <- confint(Exp3FAlm)
+Exp3FALMERresults <- summary(Exp3FAlm)
+frequentist_model_table(Exp3FALMERresults, Exp3FAConfInt,
+ # Replace colons in the names of interactions with times symbols
+  interaction_symbol_x = TRUE, 
+  
+  #Rename Title, for No title replace text with NULL
+  caption = "SART Accuracy by Mind Wanderer, Congruenct and Switch Trials")
+
+
+Exp3FAbyGroup <- ggplot(Exp3SARTfaFilt, aes(x = new_cond_column, y = FA, fill = MWer)) +
   stat_summary(
     fun = "mean", 
     geom = "bar", 
@@ -1260,11 +1052,11 @@ Exp3FAbyGroup <- ggplot(Exp3SARTfaFilt, aes(x = new_cond_column, y = FA, fill = 
 Exp3FAbyGroup
 
 Exp3FAbyConditionsInt <- Exp3SARTfaFilt %>%
-  group_by(new_cond_column, MWassignment) %>%
+  group_by(new_cond_column, MWer) %>%
   summarize(mean_value = mean(FA))
 print(Exp3FAbyConditionsInt)
 
-Exp3MISSbyGroup <- ggplot(Exp3SARTmissFILT, aes(x = new_cond_column, y = miss, fill = MWassignment)) +
+Exp3MISSbyGroup <- ggplot(Exp3SARTmissFILT, aes(x = new_cond_column, y = miss, fill = MWer)) +
   stat_summary(
     fun = "mean", 
     geom = "bar", 
@@ -1288,11 +1080,11 @@ Exp3MISSbyGroup <- ggplot(Exp3SARTmissFILT, aes(x = new_cond_column, y = miss, f
 Exp3MISSbyGroup
 
 Exp3MissbyConditionsInt <- Exp3SARTmissFILT %>%
-  group_by(new_cond_column, MWassignment) %>%
+  group_by(new_cond_column, MWer) %>%
   summarize(mean_value = mean(miss))
 
 
-Exp3CRbyGroup <- ggplot(Exp3SARTfaFilt, aes(x = new_cond_column, y = CR, fill = MWassignment)) +
+Exp3CRbyGroup <- ggplot(Exp3SARTfaFilt, aes(x = new_cond_column, y = CR, fill = MWer)) +
   stat_summary(
     fun = "mean", 
     geom = "bar", 
@@ -1316,392 +1108,548 @@ Exp3CRbyGroup <- ggplot(Exp3SARTfaFilt, aes(x = new_cond_column, y = CR, fill = 
 Exp3CRbyGroup
 
 Exp3CRbyConditionsInt <- Exp3SARTfaFilt %>%
-  group_by(new_cond_column, MWassignment) %>%
+  group_by(new_cond_column, MWer) %>%
   summarize(mean_value = mean(CR))
 
 #The misses and CR analyses are appearing as I expected.  The graphs and tables are just the inverse from the analyses of FAs and Hits.  I'm just going to 
 
 
-#Combine Both To Analyze Post Task Survey
-Experiment3SARTorig <- subset(Experiment3SART, select = -c(hit, miss, CR, FA))
-Experiment3Full <- rbind(Experiment3TS, Experiment3SARTorig)
 
+
+
+```
+
+```{r Analysis of corrected EFA}
+# ##################################################################################################################
+# #These are my analyses for Post Task Surveys
+# ##################################################################################################################
+
+library(corrr)
+library(ggcorrplot)
+library(FactoMineR)
+library(psych)
+library(GPArotation)
+
+##########MW Response Analysis#######################
+
+SurveyAnalysis <- df
+
+MWerResultsData <- rbind(MWresult_dataExp1Exp2, result_dataSART, result_dataTS)
+
+SurveyAnalysis <- left_join(SurveyAnalysis, MWerResultsData, by = "subject")
+SurveyAnalysis <- SurveyAnalysis %>% filter(!is.na(MWer))
+length(unique(SurveyAnalysis$subject))
 
 #NASA-TLX Transformations
-Experiment3Full <- Experiment3Full %>%
+SurveyAnalysis <- SurveyAnalysis %>%
   mutate(mentaldemand_response_coded = (mentaldemand_response - 1) * 5)
 
 
-Experiment3Full <- Experiment3Full %>%
+SurveyAnalysis <- SurveyAnalysis %>%
   mutate(physicaldemand_response_coded = (physicaldemand_response - 1) * 5)
 
 
-Experiment3Full <- Experiment3Full %>%
+SurveyAnalysis <- SurveyAnalysis %>%
   mutate(temporaldemand_response_coded = (temporaldemand_response - 1) * 5)
 
 
-Experiment3Full <- Experiment3Full %>%
+SurveyAnalysis <- SurveyAnalysis %>%
   mutate(performance_response_coded = (performance_response - 1) * 5)
 
 
-Experiment3Full <- Experiment3Full %>%
+SurveyAnalysis <- SurveyAnalysis %>%
   mutate(effort_response_coded = (effort_response - 1) * 5)
 
-Experiment3Full <- Experiment3Full %>%
+SurveyAnalysis <- SurveyAnalysis %>%
   mutate(frustration_response_coded = (frustration_response - 1) * 5)
 
-Experiment3Survey <- Experiment3Full[!duplicated(Experiment3Full$subject), ]
+
+PostSurveys <- SurveyAnalysis[!duplicated(SurveyAnalysis$subject), ]
+
+PostSurveys$difficulty_responseNum <- ifelse(PostSurveys$difficulty_response == 'Very Difficult', 1, ifelse(PostSurveys$difficulty_response == 'Difficult', 2, ifelse(PostSurveys$difficulty_response == 'Neither Easy/Difficult', 3, ifelse(PostSurveys$difficulty_response == 'Easy', 4, ifelse(PostSurveys$difficulty_response == 'Very Easy', 5, 999)))))
 
 
+PostSurveys$interest_responseNum <- ifelse(PostSurveys$interest_response == 'Not at all interesting', 1, ifelse(PostSurveys$interest_response == 'A little interesting', 2, ifelse(PostSurveys$interest_response == 'Somewhat interesting', 3, ifelse(PostSurveys$interest_response == 'Pretty interesting', 4, ifelse(PostSurveys$interest_response == 'Highly Interesting', 5, 999)))))
 
-##########MW Response Analysis#######################
-#Experiment 3 Analysis of Post Survey Responses
-#####################################################
-
-Experiment3Survey$difficulty_responseNum <- ifelse(Experiment3Survey$difficulty_response == 'Very Difficult', 1, ifelse(Experiment3Survey$difficulty_response == 'Difficult', 2, ifelse(Experiment3Survey$difficulty_response == 'Neither Easy/Difficult', 3, ifelse(Experiment3Survey$difficulty_response == 'Easy', 4, ifelse(Experiment3Survey$difficulty_response == 'Very Easy', 5, 999)))))
+PostSurveys <- PostSurveys %>% filter(MWer != "Tie")
 
 
-Experiment3Survey$interest_responseNum <- ifelse(Experiment3Survey$interest_response == 'Not at all interesting', 1, ifelse(Experiment3Survey$interest_response == 'A little interesting', 2, ifelse(Experiment3Survey$interest_response == 'Somewhat interesting', 3, ifelse(Experiment3Survey$interest_response == 'Pretty interesting', 4, ifelse(Experiment3Survey$interest_response == 'Highly Interesting', 5, 999)))))
-
-ggplot(Experiment3Survey, aes(x = paid_response, fill = new_exp_column)) +
+ggplot(PostSurveys, aes(x = paid_response, fill = new_exp_column)) +
   geom_density(alpha=0.2)
 
+ggplot(PostSurveys, aes(x = paid_response, fill = MWer)) +
+  geom_density(alpha=0.2)
 
-Exp3MWprobePlace <- ggplot(data = Experiment3Survey, aes(x = new_exp_column, y = paid_response, fill = MWassignment)) +
+MWprobePlace <- ggplot(data = PostSurveys, aes(x = new_exp_column, y = paid_response, fill = MWer)) +
   geom_bar(stat = "summary", fun = "mean", position = "dodge") + 
   scale_fill_manual(values = c("Yes" = "blue", "No" = "red"))
-Exp3MWprobePlace
+MWprobePlace
 
 
-Exp3MWprobePlace.labs <- MWprobePlace + labs(title = "Average Amount to be Paid by Probe Placement", x = "Probe Placement", y = "Average Amount to be Paid") + scale_x_discrete(limit = c("EXP1", "EXP2"), labels = c("Interrupting Probe","Retrospective Probe"))
-Exp3MWprobePlace.labs
+MWprobePlace.labs <- MWprobePlace + labs(title = "Average Amount to be Paid by Experiment", x = "Experimental Condition", y = "Average Amount to be Paid") + scale_x_discrete(limit = c("EXP1", "EXP2", "EXP3-TS", "EXP3-SART"), labels = c("Interrupting Probe","Retrospective Probe", "Task Switching Paradigm", "SART"))
+MWprobePlace.labs
 
-Exp3PaidMWlmProbe <- lm(paid_response~new_exp_column*new_cond_column, data = Experiment3Survey)
-summary(Exp3PaidMWlmProbe)
 
-Exp3PaidLmresult <- Experiment3Survey %>%
-  group_by(new_exp_column, new_cond_column) %>%
-  summarize(mean_value = mean(paid_response))
+colnames(PostSurveys)
 
-# Print the result
-print(Exp3PaidLmresult)
+pcadf <- PostSurveys[, c(82, 102, 103, 104, 105, 106, 107, 108, 109)]
 
-colnames(Experiment3Survey)
+model = fa(pcadf, 5, rotate="varimax")
+model
+model$loadings
+model$scores
+model$r.scores
+modelResults <- model$scores
+model$scor
+model$uniquenesses
 
-Exp3pcadf <- Experiment3Survey[, c(102, 103, 104, 105, 106, 107, 108, 109)]
+plot(1:length(model$e.values), model$e.values, type = "b", 
+     xlab = "Factor Number", ylab = "Eigenvalue",
+     main = "Scree Plot")
 
-Exp3model = fa(Exp3pcadf, 2, rotate="varimax")
-Exp3model
-Exp3model$loadings
-Exp3model$scores
-Exp3model$r.scores
-Exp3modelResults <- Exp3model$scores
-Exp3model$scor
-Exp3EFAanalysis <- cbind(Experiment3Survey, Exp3modelResults)
-summary(lm(MR1 ~ new_exp_column*MWassignment, data= Exp3EFAanalysis))
-summary(lm(MR2 ~ new_exp_column*MWassignment, data= Exp3EFAanalysis))
+EFAanalysis <- cbind(PostSurveys, modelResults)
+summary(lm(MR1 ~ new_exp_column*new_cond_column*MWer, data= EFAanalysis))
+summary(lm(MR1 ~ new_exp_column*MWer, data= EFAanalysis))
+summary(lm(MR1 ~ new_cond_column*MWer, data= EFAanalysis))
+summary(lm(MR1 ~ new_exp_column, data= EFAanalysis))
+summary(lm(MR1 ~ new_cond_column, data= EFAanalysis))
+summary(lm(MR1 ~ MWer, data= EFAanalysis))
+summary(lm(MR2 ~ new_exp_column*new_cond_column*MWer, data= EFAanalysis))
+summary(lm(MR3 ~ new_exp_column*new_cond_column*MWer, data= EFAanalysis))
+summary(lm(MR4 ~ new_exp_column*new_cond_column*MWer, data= EFAanalysis))
+summary(lm(MR5 ~ new_exp_column*new_cond_column*MWer, data= EFAanalysis))
 
-ggplot(Exp3EFAanalysis, aes(x = MR1, color = new_exp_column)) +
+ggplot(EFAanalysis, aes(x = MR1, color = MWer)) +
    geom_density()
 
-ggplot(Exp3EFAanalysis, aes(x = MR2, color = new_exp_column)) +
+ggplot(EFAanalysis, aes(x = MR2, color = MWer)) +
    geom_density()
 
 
-table(Exp3EFAanalysis$difficulty_responseNum)
-table(Exp3EFAanalysis$interest_responseNum)
-table(Exp3EFAanalysis$effort_response_coded)
-table(Exp3EFAanalysis$physicaldemand_response_coded)
-table(Exp3EFAanalysis$temporaldemand_response_coded)
-table(Exp3EFAanalysis$performance_response_coded)
-table(Exp3EFAanalysis$frustration_response_coded)
-table(Exp3EFAanalysis$MWassignment)
+table(EFAanalysis$difficulty_responseNum)
+table(EFAanalysis$interest_responseNum)
+table(EFAanalysis$effort_response_coded)
+table(EFAanalysis$physicaldemand_response_coded)
+table(EFAanalysis$temporaldemand_response_coded)
+table(EFAanalysis$performance_response_coded)
+table(EFAanalysis$frustration_response_coded)
+table(EFAanalysis$GTQ_response)
+table(EFAanalysis$MWer)
 
 #Tables for the raw EFA scores based on MW assignment and MW assignment by Enjoyable condition
-Exp3MWAssignmentByFactorLoadings <- data.frame(
-  no = ifelse(Exp3EFAanalysis$MWassignment == "No", Exp3EFAanalysis$MR1, NA),
-  yes = ifelse(Exp3EFAanalysis$MWassignment == "Yes", Exp3EFAanalysis$MR1, NA)
-)
+MWerAndEnjoyableConditionByFactorLoadings <- EFAanalysis %>%
+  group_by(MWer, new_exp_column, new_cond_column) %>%
+  summarise(
+    avg_MR1 = mean(MR1))
 
-Exp3MWAssignmentByFactorLoadings
+MWerAndEnjoyableConditionByFactorLoadings
 
-Exp3MWAssignmentAndEnjoyableConditionByFactorLoadings <- data.frame(
-  NoMWandEnjoy = ifelse(Exp3EFAanalysis$MWassignment == "No" & Exp3EFAanalysis$new_cond_column == "Enjoy", Exp3EFAanalysis$MR1, NA),
-  NoMWandNotEnjoy = ifelse(Exp3EFAanalysis$MWassignment == "No" & Exp3EFAanalysis$new_cond_column == "NotEnjoy", Exp3EFAanalysis$MR1, NA),
-  YesMWandEnjoy = ifelse(Exp3EFAanalysis$MWassignment == "Yes" & Exp3EFAanalysis$new_cond_column == "Enjoy", Exp3EFAanalysis$MR1, NA),
-  YesMWandNotEnjoy = ifelse(Exp3EFAanalysis$MWassignment == "Yes" & Exp3EFAanalysis$new_cond_column == "NotEnjoy", Exp3EFAanalysis$MR1, NA)
-)
+MWerAndEnjoyableConditionByFactorLoadings2 <- EFAanalysis %>%
+  group_by(MWer, new_exp_column, new_cond_column) %>%
+  summarise(
+    avg_MR1 = mean(MR5))
 
-MWAssignmentAndEnjoyableConditionByFactorLoadings
-
-Exp3averages <- colMeans(Exp3MWAssignmentAndEnjoyableConditionByFactorLoadings, na.rm = TRUE)
-Exp3averages <- data.frame(Average = Exp3averages)
-Exp3averages
+MWerAndEnjoyableConditionByFactorLoadings2
 
 
 #Tables for the raw Mental Demand Coded Scores by MW assignment and Enjoyment Condition
-Exp3MWAssignmentByMentalDemand <- data.frame(
-  no = ifelse(Exp3EFAanalysis$MWassignment == "No", Exp3EFAanalysis$mentaldemand_response_coded, NA),
-  yes = ifelse(Exp3EFAanalysis$MWassignment == "Yes", Exp3EFAanalysis$mentaldemand_response_coded, NA)
-)
+MWerByMentalDemand  <- EFAanalysis %>%
+  group_by(MWer, new_exp_column, new_cond_column) %>%
+  summarise(
+    avg_MentalDemand = mean(mentaldemand_response_coded))
 
-Exp3MWAssignmentByMentalDemand
 
-Exp3MWAssignmentAndEnjoyableConditionByMentalDemand <- data.frame(
-  NoMWandEnjoy = ifelse(Exp3EFAanalysis$MWassignment == "No" & Exp3EFAanalysis$new_cond_column == "Enjoy", Exp3EFAanalysis$mentaldemand_response_coded, NA),
-  NoMWandNotEnjoy = ifelse(Exp3EFAanalysis$MWassignment == "No" & Exp3EFAanalysis$new_cond_column == "NotEnjoy", Exp3EFAanalysis$mentaldemand_response_coded, NA),
-  YesMWandEnjoy = ifelse(Exp3EFAanalysis$MWassignment == "Yes" & Exp3EFAanalysis$new_cond_column == "Enjoy", Exp3EFAanalysis$mentaldemand_response_coded, NA),
-  YesMWandNotEnjoy = ifelse(Exp3EFAanalysis$MWassignment == "Yes" & Exp3EFAanalysis$new_cond_column == "NotEnjoy", Exp3EFAanalysis$mentaldemand_response_coded, NA)
-)
-
-Exp3MWAssignmentAndEnjoyableConditionByMentalDemand
-
-Exp3MentalDemandaverages <- colMeans(Exp3MWAssignmentAndEnjoyableConditionByMentalDemand, na.rm = TRUE)
-Exp3MentalDemandaverages <- data.frame(Average = Exp3MentalDemandaverages)
-Exp3MentalDemandaverages
-
-ggplot(Exp3EFAanalysis, aes(x = mentaldemand_response_coded)) +
+ggplot(EFAanalysis, aes(x = mentaldemand_response_coded)) +
   geom_histogram(binwidth = 5, fill = "skyblue", color = "black", alpha = 0.7) +
   labs(title = "Histogram of Mental Demand", x = "Value", y = "Frequency") +
   theme_minimal()
 
-ggplot(Exp3EFAanalysis, aes(x = mentaldemand_response_coded, color = MWassignment)) +
-   geom_density()
+ggplot(EFAanalysis, aes(x = mentaldemand_response_coded, color = MWer)) +
+  geom_density()
 
+mentalwide_data <- EFAanalysis %>%
+  group_by(new_exp_column, MWer) %>%
+  summarise(mean_value = mean(mentaldemand_response_coded),
+            sd_value = sd(mentaldemand_response_coded)) %>%
+  pivot_wider(names_from = MWer, values_from = c(mean_value, sd_value),
+              names_glue = "{.value}_{MWer}")
+
+mentallong_data <- EFAanalysis %>%
+  group_by(new_exp_column, MWer) %>%
+  summarise(
+    N = length(MWer),
+    mean_value = mean(mentaldemand_response_coded),
+    sd_value = sd(mentaldemand_response_coded, na.rm = TRUE),
+    se_value = sd_value/sqrt(N),
+    ciMult = qt(0.95/2 + .5, N-1),
+    ci = se_value*ciMult
+  )
+
+ggplot(mentallong_data, aes(x = new_exp_column, y = mean_value, fill = MWer)) +
+  geom_bar(stat = "summary", fun = "mean", position = "dodge") +
+  scale_fill_manual(values = c("Yes" = "blue", "No" = "red")) +
+  geom_errorbar(aes(ymin = mean_value - ci, ymax = mean_value + ci),
+                position = position_dodge(1), width = 0.2) +
+  labs(title = "Mental Demand Response Scores", x = "Experimental Condition", y = "Average Response Ratings", fill = "Mind Wanderer") +
+  scale_x_discrete(labels = c("EXP1" = "Interrupting Probe",
+                              "EXP2" = "Post Probe",
+                              "EXP3-SART" = "SART",
+                              "EXP3-TS" = "Letter/Number Task Switch"))
 
 #Tables for the raw Physical Demand Coded Scores by MW assignment and Enjoyment Condition
-Exp3MWAssignmentByPhysicalDemand <- data.frame(
-  no = ifelse(Exp3EFAanalysis$MWassignment == "No", Exp3EFAanalysis$physicaldemand_response_coded, NA),
-  yes = ifelse(Exp3EFAanalysis$MWassignment == "Yes", Exp3EFAanalysis$physicaldemand_response_coded, NA)
-)
+MWerByPhysicalDemand <- EFAanalysis %>%
+  group_by(MWer, new_exp_column, new_cond_column) %>%
+  summarise(
+    avg_PhysicalDemand = mean(physicaldemand_response_coded))
 
-Exp3MWAssignmentByPhysicalDemand
-
-Exp3MWAssignmentAndEnjoyableConditionByPhysicalDemand <- data.frame(
-  NoMWandEnjoy = ifelse(Exp3EFAanalysis$MWassignment == "No" & Exp3EFAanalysis$new_cond_column == "Enjoy", Exp3EFAanalysis$physicaldemand_response_coded, NA),
-  NoMWandNotEnjoy = ifelse(Exp3EFAanalysis$MWassignment == "No" & Exp3EFAanalysis$new_cond_column == "NotEnjoy", Exp3EFAanalysis$physicaldemand_response_coded, NA),
-  YesMWandEnjoy = ifelse(Exp3EFAanalysis$MWassignment == "Yes" & Exp3EFAanalysis$new_cond_column == "Enjoy", Exp3EFAanalysis$physicaldemand_response_coded, NA),
-  YesMWandNotEnjoy = ifelse(Exp3EFAanalysis$MWassignment == "Yes" & Exp3EFAanalysis$new_cond_column == "NotEnjoy", Exp3EFAanalysis$physicaldemand_response_coded, NA)
-)
-
-Exp3MWAssignmentAndEnjoyableConditionByPhysicalDemand
-
-Exp3PhysicalDemandaverages <- colMeans(Exp3MWAssignmentAndEnjoyableConditionByPhysicalDemand, na.rm = TRUE)
-Exp3PhysicalDemandaverages <- data.frame(Average = Exp3PhysicalDemandaverages)
-Exp3PhysicalDemandaverages
-
-ggplot(Exp3EFAanalysis, aes(x = physicaldemand_response_coded)) +
+ggplot(EFAanalysis, aes(x = physicaldemand_response_coded)) +
   geom_histogram(binwidth = 5, fill = "skyblue", color = "black", alpha = 0.7) +
   labs(title = "Histogram of Physical Demand", x = "Value", y = "Frequency") +
   theme_minimal()
 
-ggplot(Exp3EFAanalysis, aes(x = physicaldemand_response_coded, color = MWassignment)) +
+ggplot(EFAanalysis, aes(x = physicaldemand_response_coded, color = MWer)) +
   geom_density()
 
+physicalwide_data <- EFAanalysis %>%
+  group_by(new_exp_column, MWer) %>%
+  summarise(mean_value = mean(physicaldemand_response_coded),
+            sd_value = sd(physicaldemand_response_coded)) %>%
+  pivot_wider(names_from = MWer, values_from = c(mean_value, sd_value),
+              names_glue = "{.value}_{MWer}")
+
+physicallong_data <- EFAanalysis %>%
+  group_by(new_exp_column, MWer) %>%
+  summarise(
+    N = length(MWer),
+    mean_value = mean(physicaldemand_response_coded),
+    sd_value = sd(physicaldemand_response_coded, na.rm = TRUE),
+    se_value = sd_value/sqrt(N),
+    ciMult = qt(0.95/2 + .5, N-1),
+    ci = se_value*ciMult
+  )
+
+ggplot(physicallong_data, aes(x = new_exp_column, y = mean_value, fill = MWer)) +
+  geom_bar(stat = "summary", fun = "mean", position = "dodge") +
+  scale_fill_manual(values = c("Yes" = "blue", "No" = "red")) +
+  geom_errorbar(aes(ymin = mean_value - ci, ymax = mean_value + ci),
+                position = position_dodge(1), width = 0.2) +
+  labs(title = "Physical Demand Response Scores", x = "Experimental Condition", y = "Average Response Ratings", fill = "Mind Wanderer") +
+  scale_x_discrete(labels = c("EXP1" = "Interrupting Probe",
+                              "EXP2" = "Post Probe",
+                              "EXP3-SART" = "SART",
+                              "EXP3-TS" = "Letter/Number Task Switch"))
 
 #Tables for the raw Temporal Demand Coded Scores by MW assignment and Enjoyment Condition
-Exp3MWAssignmentBytemporaldemand <- data.frame(
-  no = ifelse(Exp3EFAanalysis$MWassignment == "No", Exp3EFAanalysis$temporaldemand_response_coded, NA),
-  yes = ifelse(Exp3EFAanalysis$MWassignment == "Yes", Exp3EFAanalysis$temporaldemand_response_coded, NA)
-)
+MWerBytemporaldemand <- EFAanalysis %>%
+  group_by(MWer, new_exp_column, new_cond_column) %>%
+  summarise(
+    avg_TemporalDemand = mean(temporaldemand_response_coded))
 
-Exp3MWAssignmentBytemporaldemand
-
-Exp3MWAssignmentAndEnjoyableConditionBytemporaldemand <- data.frame(
-  NoMWandEnjoy = ifelse(Exp3EFAanalysis$MWassignment == "No" & Exp3EFAanalysis$new_cond_column == "Enjoy", Exp3EFAanalysis$temporaldemand_response_coded, NA),
-  NoMWandNotEnjoy = ifelse(Exp3EFAanalysis$MWassignment == "No" & Exp3EFAanalysis$new_cond_column == "NotEnjoy", Exp3EFAanalysis$temporaldemand_response_coded, NA),
-  YesMWandEnjoy = ifelse(Exp3EFAanalysis$MWassignment == "Yes" & Exp3EFAanalysis$new_cond_column == "Enjoy", Exp3EFAanalysis$temporaldemand_response_coded, NA),
-  YesMWandNotEnjoy = ifelse(Exp3EFAanalysis$MWassignment == "Yes" & Exp3EFAanalysis$new_cond_column == "NotEnjoy", Exp3EFAanalysis$temporaldemand_response_coded, NA)
-)
-
-Exp3MWAssignmentAndEnjoyableConditionBytemporaldemand
-
-Exp3temporaldemandaverages <- colMeans(Exp3MWAssignmentAndEnjoyableConditionBytemporaldemand, na.rm = TRUE)
-Exp3temporaldemandaverages <- data.frame(Average = Exp3temporaldemandaverages)
-Exp3temporaldemandaverages
-
-ggplot(Exp3EFAanalysis, aes(x = temporaldemand_response_coded)) +
+ggplot(EFAanalysis, aes(x = temporaldemand_response_coded)) +
   geom_histogram(binwidth = 5, fill = "skyblue", color = "black", alpha = 0.7) +
   labs(title = "Histogram of Temporal Demand", x = "Value", y = "Frequency") +
   theme_minimal()
 
-ggplot(Exp3EFAanalysis, aes(x = temporaldemand_response_coded, color = MWassignment)) +
+ggplot(EFAanalysis, aes(x = temporaldemand_response_coded, color = MWer)) +
   geom_density()
 
+temporalwide_data <- EFAanalysis %>%
+  group_by(new_exp_column, MWer) %>%
+  summarise(mean_value = mean(temporaldemand_response_coded),
+            sd_value = sd(temporaldemand_response_coded)) %>%
+  pivot_wider(names_from = MWer, values_from = c(mean_value, sd_value),
+              names_glue = "{.value}_{MWer}")
+
+temporallong_data <- EFAanalysis %>%
+  group_by(new_exp_column, MWer) %>%
+  summarise(
+    N = length(MWer),
+    mean_value = mean(temporaldemand_response_coded),
+    sd_value = sd(temporaldemand_response_coded, na.rm = TRUE),
+    se_value = sd_value/sqrt(N),
+    ciMult = qt(0.95/2 + .5, N-1),
+    ci = se_value*ciMult
+  )
+
+ggplot(temporallong_data, aes(x = new_exp_column, y = mean_value, fill = MWer)) +
+  geom_bar(stat = "summary", fun = "mean", position = "dodge") +
+  scale_fill_manual(values = c("Yes" = "blue", "No" = "red")) +
+  geom_errorbar(aes(ymin = mean_value - ci, ymax = mean_value + ci),
+                position = position_dodge(1), width = 0.2) +
+  labs(title = "Temporal Demand Response Scores", x = "Experimental Condition", y = "Average Response Ratings", fill = "Mind Wanderer") +
+  scale_x_discrete(labels = c("EXP1" = "Interrupting Probe",
+                              "EXP2" = "Post Probe",
+                              "EXP3-SART" = "SART",
+                              "EXP3-TS" = "Letter/Number Task Switch"))
 
 #Tables for the raw Performance Coded Scores by MW assignment and Enjoyment Condition
-Exp3MWAssignmentByperformance <- data.frame(
-  no = ifelse(Exp3EFAanalysis$MWassignment == "No", Exp3EFAanalysis$performance_response_coded, NA),
-  yes = ifelse(Exp3EFAanalysis$MWassignment == "Yes", Exp3EFAanalysis$performance_response_coded, NA)
-)
+MWerByperformance <- EFAanalysis %>%
+  group_by(MWer, new_exp_column, new_cond_column) %>%
+  summarise(
+    avg_Performance = mean(performance_response_coded))
 
-Exp3MWAssignmentByperformance
-
-Exp3MWAssignmentAndEnjoyableConditionByperformance <- data.frame(
-  NoMWandEnjoy = ifelse(Exp3EFAanalysis$MWassignment == "No" & Exp3EFAanalysis$new_cond_column == "Enjoy", Exp3EFAanalysis$performance_response_coded, NA),
-  NoMWandNotEnjoy = ifelse(Exp3EFAanalysis$MWassignment == "No" & Exp3EFAanalysis$new_cond_column == "NotEnjoy", Exp3EFAanalysis$performance_response_coded, NA),
-  YesMWandEnjoy = ifelse(Exp3EFAanalysis$MWassignment == "Yes" & Exp3EFAanalysis$new_cond_column == "Enjoy", Exp3EFAanalysis$performance_response_coded, NA),
-  YesMWandNotEnjoy = ifelse(Exp3EFAanalysis$MWassignment == "Yes" & Exp3EFAanalysis$new_cond_column == "NotEnjoy", Exp3EFAanalysis$performance_response_coded, NA)
-)
-
-Exp3MWAssignmentAndEnjoyableConditionByperformance
-
-Exp3performanceaverages <- colMeans(Exp3MWAssignmentAndEnjoyableConditionByperformance, na.rm = TRUE)
-Exp3performanceaverages <- data.frame(Average = Exp3performanceaverages)
-Exp3performanceaverages
-
-ggplot(Exp3EFAanalysis, aes(x = performance_response_coded)) +
+ggplot(EFAanalysis, aes(x = performance_response_coded)) +
   geom_histogram(binwidth = 5, fill = "skyblue", color = "black", alpha = 0.7) +
   labs(title = "Histogram of Performance Response", x = "Value", y = "Frequency") +
   theme_minimal()
 
-ggplot(Exp3EFAanalysis, aes(x = performance_response_coded, color = MWassignment)) +
+ggplot(EFAanalysis, aes(x = performance_response_coded, color = MWer)) +
   geom_density()
 
+performancewide_data <- EFAanalysis %>%
+  group_by(new_exp_column, MWer) %>%
+  summarise(mean_value = mean(performance_response_coded),
+            sd_value = sd(performance_response_coded)) %>%
+  pivot_wider(names_from = MWer, values_from = c(mean_value, sd_value),
+              names_glue = "{.value}_{MWer}")
+
+performancelong_data <- EFAanalysis %>%
+  group_by(new_exp_column, MWer) %>%
+  summarise(
+    N = length(MWer),
+    mean_value = mean(performance_response_coded),
+    sd_value = sd(performance_response_coded, na.rm = TRUE),
+    se_value = sd_value/sqrt(N),
+    ciMult = qt(0.95/2 + .5, N-1),
+    ci = se_value*ciMult
+  )
+
+ggplot(performancelong_data, aes(x = new_exp_column, y = mean_value, fill = MWer)) +
+  geom_bar(stat = "summary", fun = "mean", position = "dodge") +
+  scale_fill_manual(values = c("Yes" = "blue", "No" = "red")) +
+  geom_errorbar(aes(ymin = mean_value - ci, ymax = mean_value + ci),
+                position = position_dodge(1), width = 0.2) +
+  labs(title = "Performance Response Scores", x = "Experimental Condition", y = "Average Response Ratings", fill = "Mind Wanderer") +
+  scale_x_discrete(labels = c("EXP1" = "Interrupting Probe",
+                              "EXP2" = "Post Probe",
+                              "EXP3-SART" = "SART",
+                              "EXP3-TS" = "Letter/Number Task Switch"))
 
 #Tables for the raw Effort Coded Scores by MW assignment and Enjoyment Condition
-Exp3MWAssignmentByeffort <- data.frame(
-  no = ifelse(Exp3EFAanalysis$MWassignment == "No", Exp3EFAanalysis$effort_response_coded, NA),
-  yes = ifelse(Exp3EFAanalysis$MWassignment == "Yes", Exp3EFAanalysis$effort_response_coded, NA)
-)
+MWerByeffort <- EFAanalysis %>%
+  group_by(MWer, new_exp_column, new_cond_column) %>%
+  summarise(
+    avg_Effort = mean(effort_response_coded))
 
-Exp3MWAssignmentByeffort
-
-Exp3MWAssignmentAndEnjoyableConditionByeffort <- data.frame(
-  NoMWandEnjoy = ifelse(Exp3EFAanalysis$MWassignment == "No" & Exp3EFAanalysis$new_cond_column == "Enjoy", Exp3EFAanalysis$effort_response_coded, NA),
-  NoMWandNotEnjoy = ifelse(Exp3EFAanalysis$MWassignment == "No" & Exp3EFAanalysis$new_cond_column == "NotEnjoy", Exp3EFAanalysis$effort_response_coded, NA),
-  YesMWandEnjoy = ifelse(Exp3EFAanalysis$MWassignment == "Yes" & Exp3EFAanalysis$new_cond_column == "Enjoy", Exp3EFAanalysis$effort_response_coded, NA),
-  YesMWandNotEnjoy = ifelse(Exp3EFAanalysis$MWassignment == "Yes" & Exp3EFAanalysis$new_cond_column == "NotEnjoy", Exp3EFAanalysis$effort_response_coded, NA)
-)
-
-Exp3MWAssignmentAndEnjoyableConditionByeffort
-
-Exp3effortaverages <- colMeans(Exp3MWAssignmentAndEnjoyableConditionByeffort, na.rm = TRUE)
-Exp3effortaverages <- data.frame(Average = Exp3effortaverages)
-Exp3effortaverages
-
-ggplot(Exp3EFAanalysis, aes(x = effort_response_coded)) +
-  geom_histogram(binwidth = 5, fill = "skyblue", color = "black", alpha = 0.7) +
-  labs(title = "Histogram of Effort Response", x = "Value", y = "Frequency") +
+ggplot(EFAanalysis, aes(x = new_exp_column, y = effort_response_coded, fill = MWer)) +
+  geom_bar(stat = "summary", fun = "mean", position = "dodge") +
+  scale_fill_manual(values = c("Yes" = "blue", "No" = "red")) +
+  labs(title = "Histogram of Effort Response", x = "Value", y = "Experiment") +
   theme_minimal()
 
-ggplot(Exp3EFAanalysis, aes(x = effort_response_coded, color = MWassignment)) +
+ggplot(EFAanalysis, aes(x = effort_response_coded, color = MWer)) +
   geom_density()
 
+effortwide_data <- EFAanalysis %>%
+  group_by(new_exp_column, MWer) %>%
+  summarise(mean_value = mean(effort_response_coded),
+            sd_value = sd(effort_response_coded)) %>%
+  pivot_wider(names_from = MWer, values_from = c(mean_value, sd_value),
+              names_glue = "{.value}_{MWer}")
+
+effortlong_data <- EFAanalysis %>%
+  group_by(new_exp_column, MWer) %>%
+  summarise(
+    N = length(MWer),
+    mean_value = mean(effort_response_coded),
+    sd_value = sd(effort_response_coded, na.rm = TRUE),
+    se_value = sd_value/sqrt(N),
+    ciMult = qt(0.95/2 + .5, N-1),
+    ci = se_value*ciMult
+  )
+
+ggplot(effortlong_data, aes(x = new_exp_column, y = mean_value, fill = MWer)) +
+  geom_bar(stat = "summary", fun = "mean", position = "dodge") +
+  scale_fill_manual(values = c("Yes" = "blue", "No" = "red")) +
+  geom_errorbar(aes(ymin = mean_value - ci, ymax = mean_value + ci),
+                position = position_dodge(1), width = 0.2) +
+  labs(title = "Effort Response Scores", x = "Experimental Condition", y = "Average Response Ratings", fill = "Mind Wanderer") +
+  scale_x_discrete(labels = c("EXP1" = "Interrupting Probe",
+                              "EXP2" = "Post Probe",
+                              "EXP3-SART" = "SART",
+                              "EXP3-TS" = "Letter/Number Task Switch"))
 
 #Tables for the raw Frustration Coded Scores by MW assignment and Enjoyment Condition
-Exp3MWAssignmentByfrustration <- data.frame(
-  no = ifelse(Exp3EFAanalysis$MWassignment == "No", Exp3EFAanalysis$frustration_response_coded, NA),
-  yes = ifelse(Exp3EFAanalysis$MWassignment == "Yes", Exp3EFAanalysis$frustration_response_coded, NA)
-)
+MWerByfrustration <- EFAanalysis %>%
+  group_by(MWer, new_exp_column, new_cond_column) %>%
+  summarise(
+    avg_Frustration = mean(frustration_response_coded))
 
-Exp3MWAssignmentByfrustration
-
-Exp3MWAssignmentAndEnjoyableConditionByfrustration <- data.frame(
-  NoMWandEnjoy = ifelse(Exp3EFAanalysis$MWassignment == "No" & Exp3EFAanalysis$new_cond_column == "Enjoy", Exp3EFAanalysis$frustration_response_coded, NA),
-  NoMWandNotEnjoy = ifelse(Exp3EFAanalysis$MWassignment == "No" & Exp3EFAanalysis$new_cond_column == "NotEnjoy", Exp3EFAanalysis$frustration_response_coded, NA),
-  YesMWandEnjoy = ifelse(Exp3EFAanalysis$MWassignment == "Yes" & Exp3EFAanalysis$new_cond_column == "Enjoy", Exp3EFAanalysis$frustration_response_coded, NA),
-  YesMWandNotEnjoy = ifelse(Exp3EFAanalysis$MWassignment == "Yes" & Exp3EFAanalysis$new_cond_column == "NotEnjoy", Exp3EFAanalysis$frustration_response_coded, NA)
-)
-
-Exp3MWAssignmentAndEnjoyableConditionByfrustration
-
-Exp3frustrationaverages <- colMeans(Exp3MWAssignmentAndEnjoyableConditionByfrustration, na.rm = TRUE)
-Exp3frustrationaverages <- data.frame(Average = Exp3frustrationaverages)
-Exp3frustrationaverages
-
-ggplot(Exp3EFAanalysis, aes(x = frustration_response_coded)) +
+ggplot(EFAanalysis, aes(x = frustration_response_coded)) +
   geom_histogram(binwidth = 5, fill = "skyblue", color = "black", alpha = 0.7) +
   labs(title = "Histogram of Frustration Response", x = "Value", y = "Frequency") +
   theme_minimal()
 
-ggplot(Exp3EFAanalysis, aes(x = frustration_response_coded, color = MWassignment)) +
+ggplot(EFAanalysis, aes(x = frustration_response_coded, color = MWer)) +
   geom_density()
 
+frustrationwide_data <- EFAanalysis %>%
+  group_by(new_exp_column, MWer) %>%
+  summarise(mean_value = mean(frustration_response_coded),
+            sd_value = sd(frustration_response_coded)) %>%
+  pivot_wider(names_from = MWer, values_from = c(mean_value, sd_value),
+              names_glue = "{.value}_{MWer}")
+
+frustrationlong_data <- EFAanalysis %>%
+  group_by(new_exp_column, MWer) %>%
+  summarise(
+    N = length(MWer),
+    mean_value = mean(frustration_response_coded),
+    sd_value = sd(frustration_response_coded, na.rm = TRUE),
+    se_value = sd_value/sqrt(N),
+    ciMult = qt(0.95/2 + .5, N-1),
+    ci = se_value*ciMult
+  )
+
+ggplot(frustrationlong_data, aes(x = new_exp_column, y = mean_value, fill = MWer)) +
+  geom_bar(stat = "summary", fun = "mean", position = "dodge") +
+  scale_fill_manual(values = c("Yes" = "blue", "No" = "red")) +
+  geom_errorbar(aes(ymin = mean_value - ci, ymax = mean_value + ci),
+                position = position_dodge(1), width = 0.2) +
+  labs(title = "Frustration Response Scores", x = "Experimental Condition", y = "Average Response Ratings", fill = "Mind Wanderer") +
+  scale_x_discrete(labels = c("EXP1" = "Interrupting Probe",
+                              "EXP2" = "Post Probe",
+                              "EXP3-SART" = "SART",
+                              "EXP3-TS" = "Letter/Number Task Switch"))
 
 #Tables for the raw Difficulty Response Scores by MW assignment and Enjoyment Condition
-Exp3MWAssignmentBydifficulty <- data.frame(
-  no = ifelse(Exp3EFAanalysis$MWassignment == "No", Exp3EFAanalysis$difficulty_responseNum, NA),
-  yes = ifelse(Exp3EFAanalysis$MWassignment == "Yes", Exp3EFAanalysis$difficulty_responseNum, NA)
-)
+MWerBydifficulty <- EFAanalysis %>%
+  group_by(MWer, new_exp_column, new_cond_column) %>%
+  summarise(
+    avg_Difficulty = mean(difficulty_responseNum))
 
-Exp3MWAssignmentBydifficulty
-
-Exp3MWAssignmentAndEnjoyableConditionBydifficulty <- data.frame(
-  NoMWandEnjoy = ifelse(Exp3EFAanalysis$MWassignment == "No" & Exp3EFAanalysis$new_cond_column == "Enjoy", Exp3EFAanalysis$difficulty_responseNum, NA),
-  NoMWandNotEnjoy = ifelse(Exp3EFAanalysis$MWassignment == "No" & Exp3EFAanalysis$new_cond_column == "NotEnjoy", Exp3EFAanalysis$difficulty_responseNum, NA),
-  YesMWandEnjoy = ifelse(Exp3EFAanalysis$MWassignment == "Yes" & Exp3EFAanalysis$new_cond_column == "Enjoy", Exp3EFAanalysis$difficulty_responseNum, NA),
-  YesMWandNotEnjoy = ifelse(Exp3EFAanalysis$MWassignment == "Yes" & Exp3EFAanalysis$new_cond_column == "NotEnjoy", Exp3EFAanalysis$difficulty_responseNum, NA)
-)
-
-Exp3MWAssignmentAndEnjoyableConditionBydifficulty
-
-Exp3difficultyaverages <- colMeans(Exp3MWAssignmentAndEnjoyableConditionBydifficulty, na.rm = TRUE)
-Exp3difficultyaverages <- data.frame(Average = Exp3difficultyaverages)
-Exp3difficultyaverages
-
-ggplot(Exp3EFAanalysis, aes(x = difficulty_responseNum)) +
+ggplot(EFAanalysis, aes(x = difficulty_responseNum)) +
   geom_histogram(binwidth = 1, fill = "skyblue", color = "black", alpha = 0.7) +
   labs(title = "Histogram of Difficulty Response", x = "Value", y = "Frequency") +
   theme_minimal()
 
-ggplot(Exp3EFAanalysis, aes(x = difficulty_responseNum, color = MWassignment)) +
+ggplot(EFAanalysis, aes(x = difficulty_responseNum, color = MWer)) +
   geom_density()
+
+difficultywide_data <- EFAanalysis %>%
+  group_by(new_exp_column, MWer) %>%
+  summarise(mean_value = mean(difficulty_responseNum),
+            sd_value = sd(difficulty_responseNum)) %>%
+  pivot_wider(names_from = MWer, values_from = c(mean_value, sd_value),
+              names_glue = "{.value}_{MWer}")
+
+difficultylong_data <- EFAanalysis %>%
+  group_by(new_exp_column, MWer) %>%
+  summarise(
+    N = length(MWer),
+    mean_value = mean(difficulty_responseNum),
+    sd_value = sd(difficulty_responseNum, na.rm = TRUE),
+    se_value = sd_value/sqrt(N),
+    ciMult = qt(0.95/2 + .5, N-1),
+    ci = se_value*ciMult
+  )
+
+ggplot(difficultylong_data, aes(x = new_exp_column, y = mean_value, fill = MWer)) +
+  geom_bar(stat = "summary", fun = "mean", position = "dodge") +
+  scale_fill_manual(values = c("Yes" = "blue", "No" = "red")) +
+  geom_errorbar(aes(ymin = mean_value - ci, ymax = mean_value + ci),
+                position = position_dodge(1), width = 0.2) +
+  labs(title = "Difficulty Response Scores", x = "Experimental Condition", y = "Average Response Ratings", fill = "Mind Wanderer") +
+  scale_x_discrete(labels = c("EXP1" = "Interrupting Probe",
+                              "EXP2" = "Post Probe",
+                              "EXP3-SART" = "SART",
+                              "EXP3-TS" = "Letter/Number Task Switch"))
 
 
 #Tables for the raw Interest Response Scores by MW assignment and Enjoyment Condition
-Exp3MWAssignmentByinterest <- data.frame(
-  no = ifelse(Exp3EFAanalysis$MWassignment == "No", Exp3EFAanalysis$interest_responseNum, NA),
-  yes = ifelse(Exp3EFAanalysis$MWassignment == "Yes", Exp3EFAanalysis$interest_responseNum, NA)
-)
+MWerByinterest <- EFAanalysis %>%
+  group_by(MWer, new_exp_column, new_cond_column) %>%
+  summarise(
+    avg_Interest = mean(interest_responseNum))
 
-Exp3MWAssignmentByinterest
-
-Exp3MWAssignmentAndEnjoyableConditionByinterest <- data.frame(
-  NoMWandEnjoy = ifelse(Exp3EFAanalysis$MWassignment == "No" & Exp3EFAanalysis$new_cond_column == "Enjoy", Exp3EFAanalysis$interest_responseNum, NA),
-  NoMWandNotEnjoy = ifelse(Exp3EFAanalysis$MWassignment == "No" & Exp3EFAanalysis$new_cond_column == "NotEnjoy", Exp3EFAanalysis$interest_responseNum, NA),
-  YesMWandEnjoy = ifelse(Exp3EFAanalysis$MWassignment == "Yes" & Exp3EFAanalysis$new_cond_column == "Enjoy", Exp3EFAanalysis$interest_responseNum, NA),
-  YesMWandNotEnjoy = ifelse(Exp3EFAanalysis$MWassignment == "Yes" & Exp3EFAanalysis$new_cond_column == "NotEnjoy", Exp3EFAanalysis$interest_responseNum, NA)
-)
-
-Exp3MWAssignmentAndEnjoyableConditionByinterest
-
-Exp3interestaverages <- colMeans(Exp3MWAssignmentAndEnjoyableConditionByinterest, na.rm = TRUE)
-Exp3interestaverages <- data.frame(Average = Exp3interestaverages)
-Exp3interestaverages
-
-ggplot(Exp3EFAanalysis, aes(x = interest_responseNum, color = MWassignment)) +
+ggplot(EFAanalysis, aes(x = interest_responseNum, color = MWer)) +
   geom_histogram(binwidth = 1, fill = "skyblue", color = "black", alpha = 0.7) +
   labs(title = "Histogram of Interest Response", x = "Value", y = "Frequency") +
   theme_minimal()
 
-ggplot(Exp3EFAanalysis, aes(x = interest_responseNum, color = MWassignment)) +
+ggplot(EFAanalysis, aes(x = interest_responseNum, color = MWer)) +
   geom_density()
+
+Interestwide_data <- EFAanalysis %>%
+  group_by(new_exp_column, MWer) %>%
+  summarise(mean_value = mean(interest_responseNum),
+            sd_value = sd(interest_responseNum)) %>%
+  pivot_wider(names_from = MWer, values_from = c(mean_value, sd_value),
+              names_glue = "{.value}_{MWer}")
+
+Interestlong_data <- EFAanalysis %>%
+  group_by(new_exp_column, MWer) %>%
+  summarise(
+    N = length(MWer),
+    mean_value = mean(interest_responseNum),
+    sd_value = sd(interest_responseNum, na.rm = TRUE),
+    se_value = sd_value/sqrt(N),
+    ciMult = qt(0.95/2 + .5, N-1),
+    ci = se_value*ciMult
+  )
+
+ggplot(Interestlong_data, aes(x = new_exp_column, y = mean_value, fill = MWer)) +
+  geom_bar(stat = "summary", fun = "mean", position = "dodge") +
+  scale_fill_manual(values = c("Yes" = "blue", "No" = "red")) +
+  geom_errorbar(aes(ymin = mean_value - ci, ymax = mean_value + ci),
+                position = position_dodge(1), width = 0.2) +
+  labs(title = "Interest Response Scores", x = "Experimental Condition", y = "Average Response Ratings", fill = "Mind Wanderer") +
+  scale_x_discrete(labels = c("EXP1" = "Interrupting Probe",
+                              "EXP2" = "Post Probe",
+                              "EXP3-SART" = "SART",
+                              "EXP3-TS" = "Letter/Number Task Switch"))
+
 
 
 #GTQ Analysis
-ggplot(Exp3EFAanalysis, aes(x = GTQ_response)) +
+MWerByGTQ <- EFAanalysis %>%
+  group_by(MWer, new_exp_column, new_cond_column) %>%
+  summarise(
+    avg_GTQ = mean(GTQ_response))
+
+ggplot(EFAanalysis, aes(x = GTQ_response, color = MWer)) +
+  geom_density()
+
+ggplot(EFAanalysis, aes(x = GTQ_response)) +
   geom_histogram(binwidth = 5, fill = "skyblue", color = "black", alpha = 0.7) +
   labs(title = "Histogram of GTQ", x = "Value", y = "Frequency") +
   theme_minimal()
 
-ggplot(Exp3EFAanalysis, aes(x = GTQ_response, color = MWassignment)) +
+GTQwide_data <- EFAanalysis %>%
+  group_by(new_exp_column, MWer) %>%
+  summarise(mean_value = mean(GTQ_response),
+            sd_value = sd(GTQ_response)) %>%
+  pivot_wider(names_from = MWer, values_from = c(mean_value, sd_value),
+              names_glue = "{.value}_{MWer}")
+
+GTQlong_data <- EFAanalysis %>%
+  group_by(new_exp_column, MWer) %>%
+  summarise(
+    N = length(MWer),
+    mean_value = mean(GTQ_response),
+    sd_value = sd(GTQ_response, na.rm = TRUE),
+    se_value = sd_value/sqrt(N),
+    ciMult = qt(0.95/2 + .5, N-1),
+    ci = se_value*ciMult
+  )
+
+ggplot(GTQlong_data, aes(x = new_exp_column, y = mean_value, fill = MWer)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_errorbar(aes(ymin = mean_value - ci, ymax = mean_value + ci),
+                position = position_dodge(1), width = 0.2) +
+  labs(title = "GTQ Response Scores", x = "Experimental Condition", y = "Mean GTQ Response", fill = "Mind Wanderer") +
+  scale_x_discrete(labels = c("EXP1" = "Interrupting Probe",
+                              "EXP2" = "Post Probe",
+                              "EXP3-SART" = "SART",
+                              "EXP3-TS" = "Letter/Number Task Switch"))
+  
+summary(lm(GTQ_response ~ MWer*new_exp_column, data = EFAanalysis))
+
+
+ggplot(EFAanalysis, aes(x = MR1, color = MWer)) +
   geom_density()
 
-ggplot(Exp3EFAanalysis, aes(x = GTQ_response, color = new_exp_column)) +
-  geom_density()
-
-
-summary(lm(GTQ_response ~ MWassignment*new_exp_column, data = Exp3EFAanalysis))
-
-
-ggplot(Exp3EFAanalysis, aes(x = MR1, color = MWassignment)) +
-  geom_density()
-
-ggplot(Exp3EFAanalysis, aes(x = MR2, color = MWassignment)) +
-  geom_density()
-
-Exp3Misery1 <- ggplot(Exp3EFAanalysis, aes(x = MWassignment, y = MR1, fill = MWassignment)) +
+Misery <- ggplot(EFAanalysis, aes(x = new_exp_column, y = MR1, fill = MWer)) +
   stat_summary(
     fun = "mean", 
     geom = "bar", 
@@ -1717,14 +1665,14 @@ Exp3Misery1 <- ggplot(Exp3EFAanalysis, aes(x = MWassignment, y = MR1, fill = MWa
     vjust = -0.5
   ) +
   labs(
-   x = "Enjoyment Condition",
-    y = "Average Effort Ratings",
-    title = "Average Effort Ratings Between Enjoyment Conditions"
+   x = "Task Type",
+    y = "Average Factor1 Ratings",
+    title = "Average Factor1 Ratings Between Task and Mind Wanderers"
   ) +
   theme_minimal()
-Exp3Misery1
+Misery
 
-Exp3Misery2 <- ggplot(Exp3EFAanalysis, aes(x = new_exp_column, y = MR2, fill = MWassignment)) +
+Misery2 <- ggplot(EFAanalysis, aes(x = MWer, y = MR1, fill = MWer)) +
   stat_summary(
     fun = "mean", 
     geom = "bar", 
@@ -1740,12 +1688,243 @@ Exp3Misery2 <- ggplot(Exp3EFAanalysis, aes(x = new_exp_column, y = MR2, fill = M
     vjust = -0.5
   ) +
   labs(
-   x = "Enjoyment Condition",
-    y = "Average Effort Ratings",
-    title = "Average Effort Ratings Between Enjoyment Conditions"
+   x = "Task Type",
+    y = "Average Factor1 Ratings",
+    title = "Average Factor1 Ratings Between Task and Mind Wanderers"
   ) +
   theme_minimal()
-Exp3Misery2
+Misery2
+
+Engaged <- ggplot(EFAanalysis, aes(x = new_exp_column, y = MR5, fill = MWer)) +
+  stat_summary(
+    fun = "mean", 
+    geom = "bar", 
+    position = position_dodge(width = 0.9),
+    aes(label = round(..y.., digits = 2)),
+    vjust = -0.5
+  ) +
+  geom_text(
+    stat = "summary", 
+    fun = "mean", 
+    aes(label = round(..y.., digits = 3)),
+    position = position_dodge(width = 0.9),
+    vjust = -0.5
+  ) +
+  labs(
+   x = "Task Type",
+    y = "Average Factor5 Ratings",
+    title = "Average Factor5 Ratings Between Task and Mind Wanderers"
+  ) +
+  theme_minimal()
+Engaged
+
+Engaged2 <- ggplot(EFAanalysis, aes(x = MWer, y = MR5, fill = MWer)) +
+  stat_summary(
+    fun = "mean", 
+    geom = "bar", 
+    position = position_dodge(width = 0.9),
+    aes(label = round(..y.., digits = 2)),
+    vjust = -0.5
+  ) +
+  geom_text(
+    stat = "summary", 
+    fun = "mean", 
+    aes(label = round(..y.., digits = 3)),
+    position = position_dodge(width = 0.9),
+    vjust = -0.5
+  ) +
+  labs(
+   x = "Task Type",
+    y = "Average Factor5 Ratings",
+    title = "Average Factor5 Ratings Between Task and Mind Wanderers"
+  ) +
+  theme_minimal()
+Engaged2
+
+
 
 
 ```
+
+
+
+```{r Post Task Analyses for Exp1 and Exp3}
+EXP1PostAnalysis <- EFAanalysis %>% filter(new_exp_column != "EXP3-SART")
+EXP1PostAnalysis <- EXP1PostAnalysis %>% filter(new_exp_column != "EXP3-TS")
+
+summary(lm(MR1 ~ MWer*new_exp_column, data = EXP1PostAnalysis))
+summary(lm(MR5 ~ MWer*new_exp_column, data = EXP1PostAnalysis))
+
+PaidMWlmProbeEXP1 <- lm(paid_response~new_exp_column*new_cond_column, data = EXP1PostAnalysis)
+summary(PaidMWlmProbeEXP1)
+
+PaidMWlmProbeEXP1_2 <- lm(paid_response~new_exp_column*MWer, data = EXP1PostAnalysis)
+summary(PaidMWlmProbeEXP1_2)
+
+PaidLmresult <- EXP1PostAnalysis %>%
+  group_by(new_exp_column, MWer) %>%
+  summarize(mean_value = mean(paid_response))
+
+# Print the result
+print(PaidLmresult)
+
+#Do our factors from the EFA, along with mind wandering, affect willingness to reengage?
+summary(lm(paid_response ~ new_exp_column*MWer*MR1*MR5, data = EXP1PostAnalysis))
+
+
+EXP3PostAnalysis <- EFAanalysis %>% filter(new_exp_column != "EXP1")
+EXP3PostAnalysis <- EXP3PostAnalysis %>% filter(new_exp_column != "EXP2")
+
+PaidMWlmProbeEXP3 <- lm(paid_response~MWer*new_exp_column, data = EXP3PostAnalysis)
+summary(PaidMWlmProbeEXP3)
+
+PaidLmresultExp3 <- EXP3PostAnalysis %>%
+  group_by(new_exp_column, MWer) %>%
+  summarize(mean_value = mean(paid_response))
+
+# Print the result
+print(PaidLmresult)
+
+
+summary(lm(MR1 ~ MWer*new_exp_column, data = EXP3PostAnalysis))
+summary(lm(MR5 ~ MWer*new_exp_column, data = EXP3PostAnalysis))
+summary(lm(paid_response ~ new_exp_column*MWer*MR1*MR5, data = EXP3PostAnalysis))
+
+
+summary(lm(paid_response ~ new_exp_column*MWer*MR1*MR5, data = EFAanalysis))
+
+ggplot(EFAanalysis, aes(x = as.factor(MWer), y = paid_response, group = new_exp_column, color = new_exp_column)) +
+  stat_summary(fun = "mean", geom = "line", aes(group = new_exp_column)) +
+  stat_summary(fun = "mean", geom = "point", aes(group = new_exp_column)) +
+  labs(x = "Mind Wander", y = "Paid Response", color = "Experiment")
+
+ggplot(EFAanalysis, aes(x = as.factor(new_exp_column), y = paid_response, group = new_exp_column, color = MWer)) +
+  stat_summary(fun = "mean", geom = "line", aes(group = MWer)) +
+  stat_summary(fun = "mean", geom = "point", aes(group = MWer)) +
+  labs(x = "Experiment", y = "Paid Response", color = "Mind Wander")
+
+#=================================================================================================
+#Catch Trials - I don't think we can do a proper analysis of the Catch Trials
+#=================================================================================================
+EXP1CatchAnalysis <- EXP1PostAnalysis %>% dplyr::select(c("subject", "MWer", "new_exp_column", "new_cond_column"))
+EXP1CatchAnalysis <-EXP1CatchAnalysis %>% filter(new_exp_column == "EXP1")
+EXP1CatchAnalysis <- EXP1CatchAnalysis %>% left_join(EXP1MWcatchTrialsAverages, by = "subject")
+
+EXP2CatchAnalysis <- EXP1PostAnalysis %>% dplyr::select(c("subject", "MWer", "new_exp_column", "new_cond_column", "MWcatch_response", "MWonTask_response", "MWother_response"))
+EXP2CatchAnalysis <- EXP2CatchAnalysis %>% filter(new_exp_column == "EXP2")
+
+EXP3CatchAnalysis <- EXP3PostAnalysis %>% dplyr::select(c("subject", "MWer", "new_exp_column", "new_cond_column", "MWcatch_response", "MWonTask_response", "MWother_response"))
+EXP3CatchAnalysis <- EXP3CatchAnalysis %>% filter(new_exp_column != "EXP1")
+EXP3CatchAnalysis <- EXP3CatchAnalysis %>% filter(new_exp_column != "EXP2")
+
+AllParticipantCatchTrials <- rbind(EXP1CatchAnalysis, EXP2CatchAnalysis, EXP3CatchAnalysis)
+
+#These are the people who are missing Catch Trial Responses
+NoResponsesForCatchTrials <- aggregate(. ~ new_exp_column + new_cond_column, data = AllParticipantCatchTrials[, c("new_exp_column", "new_cond_column", "MWcatch_response", "MWonTask_response", "MWother_response")], FUN = function(x) sum(is.na(x)), na.action = na.pass)
+
+TotalParticipantForEachCond <- AllParticipantCatchTrials %>% group_by(new_exp_column) %>% count(new_cond_column)
+
+NoResponsesForCatchTrials <- NoResponsesForCatchTrials %>% left_join(TotalParticipantForEachCond, by = c("new_exp_column", "new_cond_column"))
+
+
+AllParticipantCatchTrialsNAremoved <- AllParticipantCatchTrials[complete.cases(AllParticipantCatchTrials), ]
+
+MWCatchTrials_data <- AllParticipantCatchTrialsNAremoved %>%
+  group_by(new_exp_column, MWer) %>%
+  summarise(mean_value = mean(MWcatch_response),
+            sd_value = sd(MWcatch_response)) %>%
+  pivot_wider(names_from = MWer, values_from = c(mean_value, sd_value),
+              names_glue = "{.value}_{MWer}")
+
+MWCatchTrialslong_data <- AllParticipantCatchTrialsNAremoved %>%
+  group_by(new_exp_column, MWer) %>%
+  summarise(
+    N = length(MWer),
+    mean_value = mean(MWcatch_response),
+    sd_value = sd(MWcatch_response, na.rm = TRUE),
+    se_value = sd_value/sqrt(N),
+    ciMult = qt(0.95/2 + .5, N-1),
+    ci = se_value*ciMult
+  )
+
+ggplot(MWCatchTrialslong_data, aes(x = new_exp_column, y = mean_value, fill = MWer)) +
+  geom_bar(stat = "summary", fun = "mean", position = "dodge") +
+  scale_fill_manual(values = c("Yes" = "blue", "No" = "red")) +
+  geom_errorbar(aes(ymin = mean_value - ci, ymax = mean_value + ci),
+                position = position_dodge(1), width = 0.2) +
+  labs(title = "Catch Trials Response Scores", x = "Experimental Condition", y = "Average MW Catch TrialsResponse Ratings", fill = "Mind Wanderer") +
+  scale_x_discrete(labels = c("EXP1" = "Interrupting Probe",
+                              "EXP2" = "Post Probe",
+                              "EXP3-SART" = "SART",
+                              "EXP3-TS" = "Letter/Number Task Switch"))
+
+
+OnTaskCatchTrials_data <- AllParticipantCatchTrialsNAremoved %>%
+  group_by(new_exp_column, MWer) %>%
+  summarise(mean_value = mean(MWonTask_response),
+            sd_value = sd(MWonTask_response)) %>%
+  pivot_wider(names_from = MWer, values_from = c(mean_value, sd_value),
+              names_glue = "{.value}_{MWer}")
+
+OnTaskCatchTrialslong_data <- AllParticipantCatchTrialsNAremoved %>%
+  group_by(new_exp_column, MWer) %>%
+  summarise(
+    N = length(MWer),
+    mean_value = mean(MWonTask_response),
+    sd_value = sd(MWonTask_response, na.rm = TRUE),
+    se_value = sd_value/sqrt(N),
+    ciMult = qt(0.95/2 + .5, N-1),
+    ci = se_value*ciMult
+  )
+
+ggplot(OnTaskCatchTrialslong_data, aes(x = new_exp_column, y = mean_value, fill = MWer)) +
+  geom_bar(stat = "summary", fun = "mean", position = "dodge") +
+  scale_fill_manual(values = c("Yes" = "blue", "No" = "red")) +
+  geom_errorbar(aes(ymin = mean_value - ci, ymax = mean_value + ci),
+                position = position_dodge(1), width = 0.2) +
+  labs(title = "Catch Trials Response Scores", x = "Experimental Condition", y = "Average On Task Catch TrialsResponse Ratings", fill = "Mind Wanderer") +
+  scale_x_discrete(labels = c("EXP1" = "Interrupting Probe",
+                              "EXP2" = "Post Probe",
+                              "EXP3-SART" = "SART",
+                              "EXP3-TS" = "Letter/Number Task Switch"))
+
+
+OtherCatchTrials_data <- AllParticipantCatchTrialsNAremoved %>%
+  group_by(new_exp_column, MWer) %>%
+  summarise(mean_value = mean(MWother_response),
+            sd_value = sd(MWother_response)) %>%
+  pivot_wider(names_from = MWer, values_from = c(mean_value, sd_value),
+              names_glue = "{.value}_{MWer}")
+
+OtherCatchTrialslong_data <- AllParticipantCatchTrialsNAremoved %>%
+  group_by(new_exp_column, MWer) %>%
+  summarise(
+    N = length(MWer),
+    mean_value = mean(MWother_response),
+    sd_value = sd(MWother_response, na.rm = TRUE),
+    se_value = sd_value/sqrt(N),
+    ciMult = qt(0.95/2 + .5, N-1),
+    ci = se_value*ciMult
+  )
+
+ggplot(OtherCatchTrialslong_data, aes(x = new_exp_column, y = mean_value, fill = MWer)) +
+  geom_bar(stat = "summary", fun = "mean", position = "dodge") +
+  scale_fill_manual(values = c("Yes" = "blue", "No" = "red")) +
+  geom_errorbar(aes(ymin = mean_value - ci, ymax = mean_value + ci),
+                position = position_dodge(1), width = 0.2) +
+  labs(title = "Catch Trials Response Scores", x = "Experimental Condition", y = "Average Other Catch TrialsResponse Ratings", fill = "Mind Wanderer") +
+  scale_x_discrete(labels = c("EXP1" = "Interrupting Probe",
+                              "EXP2" = "Post Probe",
+                              "EXP3-SART" = "SART",
+                              "EXP3-TS" = "Letter/Number Task Switch"))
+
+
+summary(lm(MWcatch_response ~ MWer*new_exp_column, data = AllParticipantCatchTrialsNAremoved))
+summary(lm(MWonTask_response ~ MWer*new_exp_column, data = AllParticipantCatchTrialsNAremoved))
+summary(lm(MWother_response ~ MWer*new_exp_column, data = AllParticipantCatchTrialsNAremoved))
+
+
+
+
+```
+
