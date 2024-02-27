@@ -146,28 +146,6 @@ SurveyDataSet <- bind_rows(dataframes_list_survey, .id = "source")
 
 CompleteDataSet <- left_join(RawDataSet, SurveyDataSet, by = 'subject')
 
-
-
-# Function to create MD5 checksum for a dataframe
-create_checksum <- function(dataframe) {
-  # Convert dataframe to a character string
-  dataframe_str <- as.character(dataframe)
-  
-  # Create MD5 checksum using digest function
-  md5_checksum <- digest(dataframe_str, algo = "md5", serialize = FALSE)
-  
-  return(md5_checksum)
-}
-
-# Create MD5 checksum for the example dataframe
-#MindWanderingDissertation <- create_checksum(CompleteDataSet)
-
-# Print the checksum
-#print(MindWanderingDissertation)
-
-#write.csv(CompleteDataSet, "C:/Users/Cisler/Desktop/Data/For Analysis/CompleteDataSet.csv")
-
-
 ###Add in Exp Number and Condition
 list1 <- list.files(path = "C:/Users/Cisler/Desktop/Data/For Analysis/Exp1Enjoy/Raw", full.names = FALSE,
                                              pattern = "*.iqdat")
@@ -250,9 +228,139 @@ df <- df %>%
 rm(condition1, condition2, condition3, condition4, condition5, condition6, condition7, condition8)
 
 
+```
+
+```{r Data Integrity}
+#Files with incomplete data were deleted.  These are files where they forced closed the program without exiting using the ctrl+Q command.  This was done through visual inspection and were identified by the low number of trials and lack of post survey responses.
+
+#Do they have post survey responses?  If no remove them as it means they quit the task
+SubRaw <- unique(RawDataSet$subject)
+SubSurvey <- unique(SurveyDataSet$subject)
+
+MissingPost <- SubRaw[!SubRaw %in% SubSurvey]
+
+#Remove people who didn't try on the tasks or who screened themselves out.
+CleanDataset <- df[!df$subject %in% MissingPost, ]
+
+unique(CleanDataset$subject)
+
+#SART Task Filters
+CleanDatasetSART <- CleanDataset %>% filter(grepl("sart", source.x))
+length(unique(CleanDatasetSART$subject))
+
+CleanDatasetSART %>% group_by(new_exp_column, new_cond_column) %>% summarize(num_people = n_distinct(subject))
+
+#DQ'd if responsed to less than 50% of trials
+zero_count_df <- CleanDatasetSART %>%
+  group_by(subject) %>%
+  summarize(zero_count = sum(response == 0, na.rm = TRUE))
+
+# Calculate the total trial count for each subject
+total_count_df <- CleanDatasetSART %>%
+  group_by(subject) %>%
+  summarize(total_count = n())
+
+# Merge the two data frames and calculate the percentage of zero counts out of the total count
+PercentResp_result <- merge(zero_count_df, total_count_df, by = "subject", all = TRUE) %>%
+  mutate(zero_count = ifelse(is.na(zero_count), 0, zero_count),  # Replace NA with 0
+         zero_percentage = (zero_count / total_count) * 100)  # Calculate the percentage
+
+#Over 50% trials missing responses
+MajorityMissing <- PercentResp_result %>% filter(zero_percentage > 50)
+
+#List of those to exclude
+remove_for_missingness <- MajorityMissing$subject
+CleanDatasetSART <- CleanDatasetSART[!CleanDatasetSART$subject %in% remove_for_missingness, ]
+
+CleanDatasetSART %>% group_by(new_exp_column, new_cond_column) %>% summarize(num_people = n_distinct(subject))
+
+#DQ'd for speedy responses < 300ms on the majority of trials
+#SARTcheck <- SART_RTcheck %>% filter(new_exp_column == 'EXP1')
+SART_RTcheck <- CleanDatasetSART %>% filter(blockcode == 'SART')
+SART_RTcheck <- SART_RTcheck %>% filter(trialtype != 'probe')
+SART_RTcheck <- SART_RTcheck %>% filter(trialtype != 'probe2')
+
+SART_RTmean <- aggregate(latency ~ subject + new_exp_column + new_cond_column, SART_RTcheck, mean)
+
+SART_SpeedyResponses <- SART_RTmean %>% filter(latency < 300)
+RemoveSpeedyResp <- SART_SpeedyResponses$subject
+
+CleanDatasetSART <- CleanDatasetSART[!CleanDatasetSART$subject %in% RemoveSpeedyResp, ]
+CleanDatasetSART %>% group_by(new_exp_column, new_cond_column) %>% summarize(num_people = n_distinct(subject))
+
+TSdataset <- CleanDataset %>% filter(grepl("numberlettertask", source.x))
+
+  
+  
+CleanDatasetSARTList <- unique(CleanDatasetSART$subject)
+df <- df[df$subject %in% CleanDatasetSARTList, ]
+df <- rbind(df, TSdataset)
+df %>% group_by(new_exp_column, new_cond_column) %>% summarize(num_people = n_distinct(subject))
+
+
+#Additional Outliers Identified 
+outliers_remove <- c('511196234', '864810148', '684125186', '538020870')
+#511196234, 864810148, 684125186, 538020870
+
+df <- df[!df$subject %in% outliers_remove, ]
+
+
+#Task Switching Analysis
+Experiment3TS <- df %>% filter(new_exp_column == "EXP3-TS")
+Experiment3TS <- Experiment3TS %>% filter(blockcode == "combinedTask")
+
+#There is an extra data cleaning step to account for here.  I need to eliminate the trials where button mashing occurred.
+Experiment3TS <- Experiment3TS %>% filter(latency > 500)
+
+row_count_per_participant <- Experiment3TS %>%
+  group_by(subject) %>%
+  summarize(row_count = n())
+
+TSppl_remove <- row_count_per_participant %>% filter(row_count < 500)
+TSid_remove <- TSppl_remove$subject
+
+#If I exclude responses occurring 500 ms then two people fall outside the criteria for inclusion in the experiment (507417462 - Not Enjoy, 891302083 - Enjoy).
+#If I exclude responses occurring 350 ms or below, there is one person that falls outside the criteria for inclusion (891302083 - Enjoy)
+#I'm fine with excluding responses 500 ms and below.
+
+df <- df[!df$subject %in% TSid_remove, ]
+df %>% group_by(new_exp_column, new_cond_column) %>% summarize(num_people = n_distinct(subject))
 
 
 ```
+
+
+```{r}
+
+
+
+
+# Function to create MD5 checksum for a dataframe
+create_checksum <- function(dataframe) {
+  # Convert dataframe to a character string
+  dataframe_str <- as.character(dataframe)
+  
+  # Create MD5 checksum using digest function
+  md5_checksum <- digest(dataframe_str, algo = "md5", serialize = FALSE)
+  
+  return(md5_checksum)
+}
+
+# Create MD5 checksum for the example dataframe
+#MindWanderingDissertation <- create_checksum(CompleteDataSet)
+
+# Print the checksum
+#print(MindWanderingDissertation)
+
+#write.csv(CompleteDataSet, "C:/Users/Cisler/Desktop/Data/For Analysis/CompleteDataSet.csv")
+
+
+
+
+
+```
+
+
 
 
 ```{r}
@@ -687,8 +795,8 @@ MISSbyGroup <- ggplot(SARTaccFilt, aes(x = new_cond_column, y = miss, fill = new
   ) +
   labs(
    x = "Enjoyment Condition",
-    y = "Average False Alarms",
-    title = "Average False Alarms of Go Trials Between Enjoyment and Probe Conditions"
+    y = "Average Misses",
+    title = "Average Misses of No Go Trials Between Enjoyment and Probe Conditions"
   ) +
   theme_minimal()
 MISSbyGroup
@@ -715,8 +823,8 @@ CRbyGroup <- ggplot(SARTfaFilt, aes(x = new_cond_column, y = CR, fill = new_exp_
   ) +
   labs(
    x = "Enjoyment Condition",
-    y = "Average False Alarms",
-    title = "Average False Alarms of Go Trials Between Enjoyment and Probe Conditions"
+    y = "Average Correct Rejections",
+    title = "Average Correct Rejections of Go Trials Between Enjoyment and Probe Conditions"
   ) +
   theme_minimal()
 CRbyGroup
@@ -737,22 +845,7 @@ CRbyConditionsInt <- SARTfaFilt %>%
 #######################################################################################################
 #Analyses of the RQ on Whether or not Mind Wandering and Task Switching share a cognitive mechanism
 #######################################################################################################
-#Task Switching Analysis
-Experiment3TS <- df %>% filter(new_exp_column == "EXP3-TS")
-Experiment3TS <- Experiment3TS %>% filter(blockcode == "combinedTask")
 
-#There is an extra data cleaning step to account for here.  I need to eliminate the trials where button mashing occurred.
-Experiment3TS <- Experiment3TS %>% filter(latency > 500)
-
-row_count_per_participant <- Experiment3TS %>%
-  group_by(subject) %>%
-  summarize(row_count = n())
-#If I exclude responses occurring 500 ms then two people fall outside the criteria for inclusion in the experiment (507417462 - Not Enjoy, 891302083 - Enjoy).
-#If I exclude responses occurring 350 ms or below, there is one person that falls outside the criteria for inclusion (891302083 - Enjoy)
-#I'm fine with excluding responses 500 ms and below.
-
-Experiment3TS <- Experiment3TS %>% filter(subject != 507417462)
-Experiment3TS <- Experiment3TS %>% filter(subject != 891302083)
 
 #Add in Mind Wandering Variable
 TSMindWander <- Experiment3TS[!duplicated(Experiment3TS$subject), ]
@@ -840,10 +933,10 @@ PaidbyMWExp3TS <- ggplot(MWTS_groupings, aes(x = MWer, y = paid_response, fill =
     vjust = -0.5
   ) +
   labs(
-    x = "Mind Wandering Assignment",
+    x = "Mind Wanderer",
     y = "Average Amount to be Paid"
   ) +
-  ggtitle(str_wrap("Average Amount of Payment Required to Continue Between Mind Wandering Assignment Conditions", width = 70)) +
+  ggtitle(str_wrap("Average Amount of Payment Required to Continue Between Mind Wanderers", width = 70)) +
   theme_minimal() +
   theme(plot.title = element_text(margin = margin(b = 5)))  # Adjust the bottom margin of the title
 
