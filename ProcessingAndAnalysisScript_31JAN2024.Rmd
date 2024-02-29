@@ -1139,7 +1139,7 @@ Exp3FAbyGroup <- ggplot(Exp3SARTfaFilt, aes(x = new_cond_column, y = FA, fill = 
   labs(
    x = "Enjoyment Condition",
     y = "Average False Alarms",
-    title = "Average False Alarms of Go Trials Between Enjoyment and Probe Conditions"
+    title = "Average False Alarms of Go Trials Between Enjoyment Conditions and Mind Wanderers"
   ) +
   theme_minimal()
 Exp3FAbyGroup
@@ -1166,8 +1166,8 @@ Exp3MISSbyGroup <- ggplot(Exp3SARTmissFILT, aes(x = new_cond_column, y = miss, f
   ) +
   labs(
    x = "Enjoyment Condition",
-    y = "Average False Alarms",
-    title = "Average False Alarms of Go Trials Between Enjoyment and Probe Conditions"
+    y = "Average Misses",
+    title = "Average Misses for No Go Trials Between Enjoyment Conditions and Mind Wanderers"
   ) +
   theme_minimal()
 Exp3MISSbyGroup
@@ -1194,8 +1194,8 @@ Exp3CRbyGroup <- ggplot(Exp3SARTfaFilt, aes(x = new_cond_column, y = CR, fill = 
   ) +
   labs(
    x = "Enjoyment Condition",
-    y = "Average False Alarms",
-    title = "Average False Alarms of Go Trials Between Enjoyment and Probe Conditions"
+    y = "Average Correct Rejections",
+    title = "Average Correct Rejections of Go Trials Between Enjoyment Conditions and Mind Wanderers"
   ) +
   theme_minimal()
 Exp3CRbyGroup
