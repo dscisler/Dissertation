@@ -227,6 +227,8 @@ df <- df %>%
 # Remove temporary conditions
 rm(condition1, condition2, condition3, condition4, condition5, condition6, condition7, condition8)
 
+df$mturk_sona <- ifelse(grepl("mturk", df$source.x), 1, 2)
+
 
 ```
 
@@ -306,16 +308,18 @@ df <- df[!df$subject %in% outliers_remove, ]
 
 
 #Task Switching Analysis
-Experiment3TS <- df %>% filter(new_exp_column == "EXP3-TS")
-Experiment3TS <- Experiment3TS %>% filter(blockcode == "combinedTask")
+Experiment3TSclean <- df %>% filter(new_exp_column == "EXP3-TS")
+Experiment3TSclean <- Experiment3TSclean %>% filter(blockcode == "combinedTask")
 
 #There is an extra data cleaning step to account for here.  I need to eliminate the trials where button mashing occurred.
-Experiment3TS <- Experiment3TS %>% filter(latency > 500)
+Experiment3TSclean <- Experiment3TSclean %>% filter(latency > 500)
 
-row_count_per_participant <- Experiment3TS %>%
+#Provides a count of how many rows have a response higher than 500 ms
+row_count_per_participant <- Experiment3TSclean %>%
   group_by(subject) %>%
   summarize(row_count = n())
 
+#There are a total of 1200 trials in the main task.  If participants had a latency lower than 500 ms on 60% or more of trials, they were removed.
 TSppl_remove <- row_count_per_participant %>% filter(row_count < 500)
 TSid_remove <- TSppl_remove$subject
 
@@ -432,15 +436,18 @@ Exp1prop <- prop.table(con3, margin = 1)
 Exp1prop
 mosaicplot(Exp1prop)
 
-title <- "Proportion of Responses to the Mind Wandering Probes\nAdministered During the Task by Enjoyment Condition"
+title <- "Proportion of Responses to the\nMind Wandering Probes\nAdministered During the Task\nby Enjoyment Condition"
 
 intProbe <- ggplot(data = EXP1probe)+
-geom_mosaic(aes(x = product(probe_response, new_cond_column), fill=new_cond_column), na.rm=TRUE) +
+  geom_mosaic(aes(x = product(probe_response, new_cond_column), fill=new_cond_column), na.rm=TRUE) +
+  geom_mosaic_text(aes(x = product(probe_response, new_cond_column), 
+                       label = after_stat(.wt)), as.label=TRUE) +
   labs(
     x = "Enjoyment Condition",
     y = "Responses to Mind Wandering Probe") +
-    ggtitle(title
-  )
+  ggtitle(title
+  ) +
+  guides(fill = "none")
 intProbe
 
 con4 <- xtabs( ~ new_cond_column+probe_response, data = exp2tab)
@@ -449,14 +456,15 @@ Exp2prop <- prop.table(con4, margin = 1)
 Exp2prop
 mosaicplot(Exp2prop)
 
-title <- "Proportion of Responses to the Mind Wandering Probes\nAdministered Post Task by Enjoyment Condition"
+title <- "Proportion of Responses to the\nMind Wandering Probes\nAdministered Post Task\nby Enjoyment Condition"
 
 postProbe <- ggplot(data = EXP2probe)+
 geom_mosaic(aes(x = product(probe_response, new_cond_column), fill=new_cond_column), na.rm=TRUE) +
   labs(
     x = "Enjoyment Condition",
     y = "Responses to Mind Wandering Probe") +
-    ggtitle(title)
+    ggtitle(title) +
+  guides(fill = "none")
 postProbe
 
 bothPlots <- grid.arrange(intProbe, postProbe, ncol = 2)
@@ -538,6 +546,9 @@ exp1exp2Analysis2$MWer <- as.factor(exp1exp2Analysis2$MWer)
 
 # write.csv(exp1exp2Analysis2, "C:/Users/Cisler/Desktop/Data/For Analysis/ProbeAnalysisForRQs1and2.csv")
 # write.csv(df, "C:/Users/Cisler/Desktop/Data/For Analysis/CompleteDatasetWithTransformationsAndModifications_17JAN2024.csv")
+
+MWerModel <- glm(formula = MWer ~ new_exp_column * new_cond_column, family = binomial(link = "logit"), 
+    data = exp1exp2Analysis2)
 
 ```
 ```{r}
@@ -626,7 +637,15 @@ frequentist_model_table(RTLMERresults, RTlmConfInt,
   #Rename Title, for No title replace text with NULL
   caption = "Latency by Probe Placement and Enjoyment Condition")
 
-
+RTlm <- lmer(latency~new_exp_column+new_cond_column + (1|subject), data = SARTrtFilt)
+RTlmConfInt <- confint(RTlm)
+RTLMERresults <- summary(RTlm)
+frequentist_model_table(RTLMERresults, RTlmConfInt,
+ # Replace colons in the names of interactions with times symbols
+  interaction_symbol_x = TRUE, 
+  
+  #Rename Title, for No title replace text with NULL
+  caption = "Latency by Probe Placement and Enjoyment Condition")
 
 RTbyGroup <- ggplot(SARTrtFilt, aes(x = new_cond_column, y = latency, fill = new_exp_column)) +
     stat_summary(
@@ -671,6 +690,17 @@ frequentist_model_table(ACCLMERresults, ACClmConfInt,
   #Rename Title, for No title replace text with NULL
   caption = "Accuracy to No Go Trials by Probe Placement and Enjoyment Condition")
 
+ACClm <- lmer(correct ~ new_exp_column+new_cond_column + (1|subject), data = SARTaccFilt)
+ACClmConfInt <- confint(ACClm)
+ACCLMERresults <- summary(ACClm)
+frequentist_model_table(ACCLMERresults, ACClmConfInt,
+ # Replace colons in the names of interactions with times symbols
+  interaction_symbol_x = TRUE, 
+  
+  #Rename Title, for No title replace text with NULL
+  caption = "Accuracy to No Go Trials by Probe Placement and Enjoyment Condition")
+
+
 ACCbyGroup <- ggplot(SARTaccFilt, aes(x = new_cond_column, y = correct, fill = new_exp_column)) +
   stat_summary(
     fun = "mean", 
@@ -711,6 +741,15 @@ frequentist_model_table(FALMERresults, FAlmConfInt,
   #Rename Title, for No title replace text with NULL
   caption = "False Alarms by Probe Placement and Enjoyment Condition")
 
+FAlm <- lmer(FA ~ new_exp_column+new_cond_column + (1|subject), data = SARTfaFilt)
+FAlmConfInt <- confint(FAlm)
+FALMERresults <- summary(FAlm)
+frequentist_model_table(FALMERresults, FAlmConfInt,
+ # Replace colons in the names of interactions with times symbols
+  interaction_symbol_x = TRUE, 
+  
+  #Rename Title, for No title replace text with NULL
+  caption = "False Alarms by Probe Placement and Enjoyment Condition")
 
 
 
@@ -845,6 +884,17 @@ CRbyConditionsInt <- SARTfaFilt %>%
 #######################################################################################################
 #Analyses of the RQ on Whether or not Mind Wandering and Task Switching share a cognitive mechanism
 #######################################################################################################
+#Congruency Condition
+#1 = target symbol and distractor symbol share the same key
+#2 = target symbol and distractor symbol require opposite keys
+
+#Switch Condition
+#0 = non-switch trial (even trials); (relevant for combined trials only)
+#1 = switch trials (odd trials)
+
+
+Experiment3TS <- df %>% filter(new_exp_column == "EXP3-TS")
+Experiment3TS <- Experiment3TS %>% filter(blockcode == "combinedTask")
 
 
 #Add in Mind Wandering Variable
@@ -880,10 +930,57 @@ result_dataTS$subject <- as.integer(result_dataTS$subject)
 
 Experiment3TS <- left_join(Experiment3TS, result_dataTS, by = "subject")
 
+Experiment3TS$congruence <- as.factor(Experiment3TS$congruence)
+Experiment3TS$switch <- as.factor(Experiment3TS$switch)
+
+##########################################################################################
+#Propensity to Mind Wander
+##########################################################################################
+Experiment3TSprobeResp <- distinct(Experiment3TS, subject, .keep_all = TRUE)
+
+
+title <- "Proportion of Responses to the Mind Wandering Probes For the Task Switching\nParadigm by Enjoyment Condition"
+
+postProbeTS <- ggplot(data = Experiment3TSprobeResp)+
+geom_mosaic(aes(x = product(probe_response, new_cond_column), fill=new_cond_column), na.rm=TRUE) +
+  labs(
+    x = "Enjoyment Condition",
+    y = "Responses to Mind Wandering Probe") +
+    ggtitle(title) +
+  guides(fill = "none")
+postProbeTS
+
+Experiment3TSprobeResp %>% group_by(new_cond_column) %>% count(probe_response)
+
+bothPlots <- grid.arrange(intProbe, postProbe, ncol = 2)
+ggsave("arranged_plots.png", bothPlots, width = 12, height = 6, units = "in", dpi = 300)
+
+grid.arrange(intProbe, postProbe, ncol = 2)
+
 MWTS_groupings <- Experiment3TS[!duplicated(Experiment3TS$subject), ]
 MWGroup_counts <- MWTS_groupings %>% 
   group_by(MWer, new_exp_column, new_cond_column) %>% 
   tally(name = "count_of_people")
+
+TSlatency <- lmer(latency~new_cond_column*MWer*congruence*switch + (1|subject), data = Experiment3TS)
+TSlatencyConfInt <- confint(TSlatency)
+TSlatencyLMERresults <- summary(TSlatency)
+frequentist_model_table(TSlatencyLMERresults, TSlatencyConfInt,
+ # Replace colons in the names of interactions with times symbols
+  interaction_symbol_x = TRUE, 
+  
+  #Rename Title, for No title replace text with NULL
+  caption = "Latency by Enjoyment Condition, Mind Wanderer, Congruent and Switch Trials")
+
+TSlatency <- lmer(latency~new_cond_column+MWer+congruence+switch + (1|subject), data = Experiment3TS)
+TSlatencyConfInt <- confint(TSlatency)
+TSlatencyLMERresults <- summary(TSlatency)
+frequentist_model_table(TSlatencyLMERresults, TSlatencyConfInt,
+ # Replace colons in the names of interactions with times symbols
+  interaction_symbol_x = TRUE, 
+  
+  #Rename Title, for No title replace text with NULL
+  caption = "Latency by Enjoyment Condition, Mind Wanderer, Congruent and Switch Trials")
 
 
 TSlatency <- lmer(latency~MWer*congruence*switch + (1|subject), data = Experiment3TS)
@@ -894,14 +991,50 @@ frequentist_model_table(TSlatencyLMERresults, TSlatencyConfInt,
   interaction_symbol_x = TRUE, 
   
   #Rename Title, for No title replace text with NULL
-  caption = "Latency by Mind Wanderer, Congruenct and Switch Trials")
+  caption = "Latency by Mind Wanderer, Congruent and Switch Trials")
 
+TSlatency <- lmer(latency~MWer+congruence+switch + (1|subject), data = Experiment3TS)
+TSlatencyConfInt <- confint(TSlatency)
+TSlatencyLMERresults <- summary(TSlatency)
+frequentist_model_table(TSlatencyLMERresults, TSlatencyConfInt,
+ # Replace colons in the names of interactions with times symbols
+  interaction_symbol_x = TRUE, 
+  
+  #Rename Title, for No title replace text with NULL
+  caption = "Latency by Mind Wanderer, Congruent and Switch Trials")
+
+RTbyMWExp3TSswitch <- ggplot(Experiment3TS, aes(x = switch, y = latency, fill = switch)) +
+  stat_summary(
+    fun = "mean", 
+    geom = "bar", 
+    position = position_dodge(width = 0.9),
+    aes(label = round(..y.., digits = 2)),
+    vjust = -0.5
+  ) +
+  geom_text(
+    stat = "summary", 
+    fun = "mean", 
+    aes(label = round(..y.., digits = 3)),
+    position = position_dodge(width = 0.9),
+    vjust = -0.5
+  ) +
+  labs(
+    x = "Switch",
+    y = "Average Task Switching Reaction Time"
+  ) +
+  ggtitle(str_wrap("Reaction Time of Task Switching Between Switch Conditions", width = 70)) +
+  theme_minimal() +
+  theme(plot.title = element_text(margin = margin(b = 5)))  # Adjust the bottom margin of the title
+
+
+# Print the plot
+RTbyMWExp3TSswitch
 
 summary(lmer(latency~congruence*switch + (1|subject), data = Experiment3TS))
 summary(lmer(latency~MWer*switch + (1|subject), data = Experiment3TS))
 summary(lmer(latency~MWer + (1|subject), data = Experiment3TS))
 
-TSacc <- lmer(correct~MWer*congruence*switch + (1|subject), data = Experiment3TS)
+TSacc <- lmer(correct~new_cond_column*MWer*congruence*switch + (1|subject), data = Experiment3TS)
 TSaccConfInt <- confint(TSacc)
 TSaccLMERresults <- summary(TSacc)
 frequentist_model_table(TSaccLMERresults, TSaccConfInt,
@@ -909,8 +1042,122 @@ frequentist_model_table(TSaccLMERresults, TSaccConfInt,
   interaction_symbol_x = TRUE, 
   
   #Rename Title, for No title replace text with NULL
-  caption = "Accuracy by Mind Wanderer, Congruenct and Switch Trials")
+  caption = "Accuracy by Enjoyment Condition, Mind Wanderer, Congruent and Switch Trials")
 
+TSacc <- lmer(correct~new_cond_column+MWer+congruence+switch + (1|subject), data = Experiment3TS)
+TSaccConfInt <- confint(TSacc)
+TSaccLMERresults <- summary(TSacc)
+frequentist_model_table(TSaccLMERresults, TSaccConfInt,
+ # Replace colons in the names of interactions with times symbols
+  interaction_symbol_x = TRUE, 
+  
+  #Rename Title, for No title replace text with NULL
+  caption = "Accuracy by Enjoyment Condition, Mind Wanderer, Congruent and Switch Trials")
+
+
+
+
+TSacc <- lmer(correct~new_cond_column*congruence*switch + (1|subject), data = Experiment3TS)
+TSaccConfInt <- confint(TSacc)
+TSaccLMERresults <- summary(TSacc)
+frequentist_model_table(TSaccLMERresults, TSaccConfInt,
+ # Replace colons in the names of interactions with times symbols
+  interaction_symbol_x = TRUE, 
+  
+  #Rename Title, for No title replace text with NULL
+  caption = "Accuracy by Mind Wanderer, Congruent and Switch Trials")
+
+TSacc <- lmer(correct~new_cond_column+congruence+switch + (1|subject), data = Experiment3TS)
+TSaccConfInt <- confint(TSacc)
+TSaccLMERresults <- summary(TSacc)
+frequentist_model_table(TSaccLMERresults, TSaccConfInt,
+ # Replace colons in the names of interactions with times symbols
+  interaction_symbol_x = TRUE, 
+  
+  #Rename Title, for No title replace text with NULL
+  caption = "Accuracy by Mind Wanderer, Congruent and Switch Trials")
+
+
+ACCbyMWExp3TS <- ggplot(Experiment3TS, aes(x = MWer, y = correct, fill = MWer)) +
+  stat_summary(
+    fun = "mean", 
+    geom = "bar", 
+    position = position_dodge(width = 0.9),
+    aes(label = round(..y.., digits = 2)),
+    vjust = -0.5
+  ) +
+  geom_text(
+    stat = "summary", 
+    fun = "mean", 
+    aes(label = round(..y.., digits = 3)),
+    position = position_dodge(width = 0.9),
+    vjust = -0.5
+  ) +
+  labs(
+    x = "Mind Wanderer",
+    y = "Average Task Switching Accuracy"
+  ) +
+  ggtitle(str_wrap("Accuracy of Task Switching Between Mind Wanderers", width = 70)) +
+  theme_minimal() +
+  theme(plot.title = element_text(margin = margin(b = 5)))  # Adjust the bottom margin of the title
+
+
+# Print the plot
+ACCbyMWExp3TS
+
+ACCbyMWExp3TScongruence <- ggplot(Experiment3TS, aes(x = congruence, y = correct, fill = switch)) +
+  stat_summary(
+    fun = "mean", 
+    geom = "bar", 
+    position = position_dodge(width = 0.9),
+    aes(label = round(..y.., digits = 2)),
+    vjust = -0.5
+  ) +
+  geom_text(
+    stat = "summary", 
+    fun = "mean", 
+    aes(label = round(..y.., digits = 3)),
+    position = position_dodge(width = 0.9),
+    vjust = -0.5
+  ) +
+  labs(
+    x = "Congruence",
+    y = "Average Task Switching Accuracy"
+  ) +
+  ggtitle(str_wrap("Accuracy of Task Switching Between Congruent by Switch Trials", width = 70)) +
+  theme_minimal() +
+  theme(plot.title = element_text(margin = margin(b = 5)))  # Adjust the bottom margin of the title
+
+
+# Print the plot
+ACCbyMWExp3TScongruence
+
+ACCbyMWExp3TSswitch <- ggplot(Experiment3TS, aes(x = switch, y = correct, fill = switch)) +
+  stat_summary(
+    fun = "mean", 
+    geom = "bar", 
+    position = position_dodge(width = 0.9),
+    aes(label = round(..y.., digits = 2)),
+    vjust = -0.5
+  ) +
+  geom_text(
+    stat = "summary", 
+    fun = "mean", 
+    aes(label = round(..y.., digits = 3)),
+    position = position_dodge(width = 0.9),
+    vjust = -0.5
+  ) +
+  labs(
+    x = "Switch",
+    y = "Average Task Switching Accuracy"
+  ) +
+  ggtitle(str_wrap("Accuracy of Task Switching Between Switch Conditions", width = 70)) +
+  theme_minimal() +
+  theme(plot.title = element_text(margin = margin(b = 5)))  # Adjust the bottom margin of the title
+
+
+# Print the plot
+ACCbyMWExp3TSswitch
 
 summary(lmer(correct~congruence*switch + (1|subject), data = Experiment3TS))
 summary(lmer(correct~MWer*congruence + (1|subject), data = Experiment3TS))
@@ -985,6 +1232,25 @@ result_dataSART$subject <- as.integer(result_dataSART$subject)
 ###SART analysis for Exp3
 Experiment3SART <- left_join(Experiment3SART, result_dataSART, by = "subject")
 
+Experiment3SARTprobeResp <- distinct(Experiment3TS, subject, .keep_all = TRUE)
+
+title <- "Proportion of Responses to the Mind Wandering Probes For the SART by Enjoyment Condition"
+postProbeSART <- ggplot(data = Experiment3SARTprobeResp)+
+geom_mosaic(aes(x = product(probe_response, new_cond_column), fill=new_cond_column), na.rm=TRUE) +
+  labs(
+    x = "Enjoyment Condition",
+    y = "Responses to Mind Wandering Probe") +
+    ggtitle(title) +
+  guides(fill = "none")
+postProbeSART
+
+Experiment3SARTprobeResp %>% group_by(new_cond_column) %>% count(probe_response)
+
+TSsartbothPlots <- grid.arrange(postProbeTS, postProbeSART, ncol = 2)
+#ggsave("arranged_plots.png", bothPlots, width = 12, height = 6, units = "in", dpi = 300)
+
+grid.arrange(postProbeTS, postProbeSART, ncol = 2)
+
 ####Analysis of SART Performance
 Experiment3SART$hit <- ifelse(Experiment3SART$trialtype == "NoGo" & Experiment3SART$correct == 1, 1, 0)
 Experiment3SART$miss <- ifelse(Experiment3SART$trialtype == "NoGo" & Experiment3SART$correct == 0, 1, 0)
@@ -1014,6 +1280,18 @@ Exp3QualCheck <- left_join(Exp3Hitmean, Exp3FAmean, by = "subject") %>%
 # Exp3RTlm <- lm(latency~new_cond_column*MWer, data = Exp3SARTrtFilt)
 # summary(Exp3RTlm)
 
+Exp3RTlm <- lmer(latency~new_cond_column + (1 | subject), data=Exp3SARTrtFilt)
+summary(Exp3RTlm)
+
+Exp3RTConfInt <- confint(Exp3RTlm)
+Exp3RTLMERresults <- summary(Exp3RTlm)
+frequentist_model_table(Exp3RTLMERresults, Exp3RTConfInt,
+ # Replace colons in the names of interactions with times symbols
+  interaction_symbol_x = TRUE, 
+  
+  #Rename Title, for No title replace text with NULL
+  caption = "SART Latency by Mind Wanderer, Congruenct and Switch Trials")
+
 Exp3RTlm <- lmer(latency~new_cond_column * MWer + (1 | subject), data=Exp3SARTrtFilt)
 summary(Exp3RTlm)
 
@@ -1025,6 +1303,18 @@ frequentist_model_table(Exp3RTLMERresults, Exp3RTConfInt,
   
   #Rename Title, for No title replace text with NULL
   caption = "SART Latency by Mind Wanderer, Congruenct and Switch Trials")
+
+Exp3RTlm <- lmer(latency~new_cond_column + MWer + (1 | subject), data=Exp3SARTrtFilt)
+summary(Exp3RTlm)
+
+Exp3RTConfInt <- confint(Exp3RTlm)
+Exp3RTLMERresults <- summary(Exp3RTlm)
+frequentist_model_table(Exp3RTLMERresults, Exp3RTConfInt,
+ # Replace colons in the names of interactions with times symbols
+  interaction_symbol_x = TRUE, 
+  
+  #Rename Title, for No title replace text with NULL
+  caption = "SART Latency by Mind Wanderer and Enjoyment Condition")
 
 
 Exp3RTbyGroup <- ggplot(Exp3SARTrtFilt, aes(x = new_cond_column, y = latency, fill = MWer)) +
@@ -1045,7 +1335,7 @@ Exp3RTbyGroup <- ggplot(Exp3SARTrtFilt, aes(x = new_cond_column, y = latency, fi
   labs(
    x = "Enjoyment Condition",
     y = "Average Reaction Time",
-    title = "Average Reaction Time Between Enjoyment Conditions and MW Assignment"
+    title = "Average Reaction Time Between Enjoyment Conditions and Mind Wanderer"
   ) +
   theme_minimal()
 Exp3RTbyGroup
@@ -1070,7 +1360,19 @@ frequentist_model_table(Exp3ACCLMERresults, Exp3ACCConfInt,
   interaction_symbol_x = TRUE, 
   
   #Rename Title, for No title replace text with NULL
-  caption = "SART Accuracy by Mind Wanderer, Congruenct and Switch Trials")
+  caption = "SART Accuracy by Mind Wanderer and Enjoyment Conditions")
+
+Exp3ACClm <- lmer(correct~new_cond_column + MWer + (1 | subject), data=Exp3SARTaccFilt)
+summary(Exp3ACClm)
+
+Exp3ACCConfInt <- confint(Exp3ACClm)
+Exp3ACCLMERresults <- summary(Exp3ACClm)
+frequentist_model_table(Exp3ACCLMERresults, Exp3ACCConfInt,
+ # Replace colons in the names of interactions with times symbols
+  interaction_symbol_x = TRUE, 
+  
+  #Rename Title, for No title replace text with NULL
+  caption = "SART Accuracy by Mind Wanderer and Enjoyment Conditions")
 
 
 Exp3ACCbyGroup <- ggplot(Exp3SARTaccFilt, aes(x = new_cond_column, y = correct, fill = MWer)) +
@@ -1090,8 +1392,8 @@ Exp3ACCbyGroup <- ggplot(Exp3SARTaccFilt, aes(x = new_cond_column, y = correct, 
   ) +
   labs(
    x = "Enjoyment Condition",
-    y = "Average Reaction Time",
-    title = "Average Accuracy of No Go Trials Between Enjoyment and Probe Conditions"
+    y = "Average Accuracy",
+    title = "Average Accuracy of No Go Trials Between Enjoyment and Mind Wanderer"
   ) +
   theme_minimal()
 Exp3ACCbyGroup
@@ -1118,7 +1420,19 @@ frequentist_model_table(Exp3FALMERresults, Exp3FAConfInt,
   interaction_symbol_x = TRUE, 
   
   #Rename Title, for No title replace text with NULL
-  caption = "SART Accuracy by Mind Wanderer, Congruenct and Switch Trials")
+  caption = "SART False Alarms by Mind Wanderer and Enjoyment Condition")
+
+Exp3FAlm <- lmer(FA~new_cond_column + MWer + (1 | subject), data=Exp3SARTfaFilt)
+summary(Exp3FAlm)
+
+Exp3FAConfInt <- confint(Exp3FAlm)
+Exp3FALMERresults <- summary(Exp3FAlm)
+frequentist_model_table(Exp3FALMERresults, Exp3FAConfInt,
+ # Replace colons in the names of interactions with times symbols
+  interaction_symbol_x = TRUE, 
+  
+  #Rename Title, for No title replace text with NULL
+  caption = "SART False Alarms by Mind Wanderer and Enjoyment Condition")
 
 
 Exp3FAbyGroup <- ggplot(Exp3SARTfaFilt, aes(x = new_cond_column, y = FA, fill = MWer)) +
@@ -1139,7 +1453,7 @@ Exp3FAbyGroup <- ggplot(Exp3SARTfaFilt, aes(x = new_cond_column, y = FA, fill = 
   labs(
    x = "Enjoyment Condition",
     y = "Average False Alarms",
-    title = "Average False Alarms of Go Trials Between Enjoyment Conditions and Mind Wanderers"
+    title = "Average False Alarms of Go Trials Between Enjoyment Conditions and Mind Wanderer"
   ) +
   theme_minimal()
 Exp3FAbyGroup
@@ -1167,7 +1481,7 @@ Exp3MISSbyGroup <- ggplot(Exp3SARTmissFILT, aes(x = new_cond_column, y = miss, f
   labs(
    x = "Enjoyment Condition",
     y = "Average Misses",
-    title = "Average Misses for No Go Trials Between Enjoyment Conditions and Mind Wanderers"
+    title = "Average Misses for No Go Trials Between Enjoyment Conditions and Mind Wanderer"
   ) +
   theme_minimal()
 Exp3MISSbyGroup
@@ -1195,7 +1509,7 @@ Exp3CRbyGroup <- ggplot(Exp3SARTfaFilt, aes(x = new_cond_column, y = CR, fill = 
   labs(
    x = "Enjoyment Condition",
     y = "Average Correct Rejections",
-    title = "Average Correct Rejections of Go Trials Between Enjoyment Conditions and Mind Wanderers"
+    title = "Average Correct Rejections of Go Trials Between Enjoyment Conditions and Mind Wanderer"
   ) +
   theme_minimal()
 Exp3CRbyGroup
@@ -1285,7 +1599,7 @@ MWprobePlace.labs
 
 colnames(PostSurveys)
 
-pcadf <- PostSurveys[, c(82, 102, 103, 104, 105, 106, 107, 108, 109)]
+pcadf <- PostSurveys[, c(82, 103, 104, 105, 106, 107, 108, 109, 110)]
 
 model = fa(pcadf, 5, rotate="varimax")
 model
@@ -1737,7 +2051,8 @@ ggplot(GTQlong_data, aes(x = new_exp_column, y = mean_value, fill = MWer)) +
                               "EXP3-TS" = "Letter/Number Task Switch"))
   
 summary(lm(GTQ_response ~ MWer*new_exp_column, data = EFAanalysis))
-
+summary(lm(GTQ_response ~ MWer*new_exp_column*MR1*MR5, data = EFAanalysis))
+summary(lm(GTQ_response ~ MWer+new_exp_column+MR1+MR5, data = EFAanalysis))
 
 ggplot(EFAanalysis, aes(x = MR1, color = MWer)) +
   geom_density()
@@ -1759,9 +2074,13 @@ Misery <- ggplot(EFAanalysis, aes(x = new_exp_column, y = MR1, fill = MWer)) +
   ) +
   labs(
    x = "Task Type",
-    y = "Average Factor1 Ratings",
-    title = "Average Factor1 Ratings Between Task and Mind Wanderers"
+    y = "Average Positive Assessment Ratings",
+    title = "Average Positive Assessment Ratings Between Task and Mind Wanderers"
   ) +
+  scale_x_discrete(labels = c("EXP1" = "Interrupting Probe",
+                              "EXP2" = "Post Probe",
+                              "EXP3-SART" = "SART",
+                              "EXP3-TS" = "Letter/Number Task Switch")) +
   theme_minimal()
 Misery
 
@@ -1788,6 +2107,9 @@ Misery2 <- ggplot(EFAanalysis, aes(x = MWer, y = MR1, fill = MWer)) +
   theme_minimal()
 Misery2
 
+cor(EFAanalysis$GTQ_response, EFAanalysis$MR1)
+cor(EFAanalysis$GTQ_response, EFAanalysis$MR5)
+
 Engaged <- ggplot(EFAanalysis, aes(x = new_exp_column, y = MR5, fill = MWer)) +
   stat_summary(
     fun = "mean", 
@@ -1805,9 +2127,13 @@ Engaged <- ggplot(EFAanalysis, aes(x = new_exp_column, y = MR5, fill = MWer)) +
   ) +
   labs(
    x = "Task Type",
-    y = "Average Factor5 Ratings",
-    title = "Average Factor5 Ratings Between Task and Mind Wanderers"
+    y = "Average Negative Assessment Ratings",
+    title = "Average Negative Assessment Ratings Between Task and Mind Wanderers"
   ) +
+  scale_x_discrete(labels = c("EXP1" = "Interrupting Probe",
+                              "EXP2" = "Post Probe",
+                              "EXP3-SART" = "SART",
+                              "EXP3-TS" = "Letter/Number Task Switch")) +
   theme_minimal()
 Engaged
 
@@ -1842,6 +2168,11 @@ Engaged2
 
 
 ```{r Post Task Analyses for Exp1 and Exp3}
+#Use effects coding and center continuous predictors
+#Differences in paid response between SONA vs MTurk
+
+print(cor(EFAanalysis[, c('MR1','MR2','MR3', 'MR4', 'MR5')]))
+
 EXP1PostAnalysis <- EFAanalysis %>% filter(new_exp_column != "EXP3-SART")
 EXP1PostAnalysis <- EXP1PostAnalysis %>% filter(new_exp_column != "EXP3-TS")
 
@@ -1851,8 +2182,73 @@ summary(lm(MR5 ~ MWer*new_exp_column, data = EXP1PostAnalysis))
 PaidMWlmProbeEXP1 <- lm(paid_response~new_exp_column*new_cond_column, data = EXP1PostAnalysis)
 summary(PaidMWlmProbeEXP1)
 
+PaidMWlmProbeEXP1 <- lm(paid_response~new_exp_column+new_cond_column, data = EXP1PostAnalysis)
+summary(PaidMWlmProbeEXP1)
+
+
+PaidMWlmProbeEXP1_data <- EXP1PostAnalysis %>%
+  group_by(new_exp_column) %>%
+  summarise(
+    N = length(subject),
+    mean_value = mean(paid_response),
+    sd_value = sd(paid_response, na.rm = TRUE),
+    se_value = sd_value/sqrt(N),
+    ciMult = qt(0.95/2 + .5, N-1),
+    ci = se_value*ciMult
+  )
+
+#With the legend
+# ggplot(PaidMWlmProbeEXP1_data, aes(x = new_exp_column, y = mean_value, fill = new_exp_column)) +
+#   geom_bar(stat = "summary", fun = "mean", position = "dodge") +
+#   scale_fill_manual(values = c("blue", "red"), 
+#                     labels = c("Interrupting Probe", "Post Probe"),
+#                     name = "Probe Condition") +
+#   geom_errorbar(aes(ymin = mean_value - ci, ymax = mean_value + ci),
+#                 position = position_dodge(1), width = 0.2) +
+#   labs(title = "Average Reported Amount to be Paid to Re-engage With the Task by Probe Condition",
+#        x = "Probe Condition",
+#        y = "Average Reported Amount to be Paid") +
+#   scale_x_discrete(labels = c("EXP1" = "Interrupting Probe",
+#                               "EXP2" = "Post Probe"
+#   ))
+
+#With the legend removed
+ggplot(PaidMWlmProbeEXP1_data, aes(x = new_exp_column, y = mean_value)) +
+  geom_bar(stat = "summary", aes(fill = new_exp_column), fun = "mean", position = "dodge") +
+  geom_errorbar(aes(ymin = mean_value - ci, ymax = mean_value + ci),
+                position = position_dodge(1), width = 0.2) +
+  labs(title = "Average Reported Amount to be Paid to Re-engage With the Task by Probe Condition",
+       x = "Probe Condition",
+       y = "Average Reported Amount to be Paid") +
+  scale_x_discrete(labels = c("EXP1" = "Interrupting Probe",
+                              "EXP2" = "Post Probe"
+  )) +
+  theme(legend.position = "none")
+
 PaidMWlmProbeEXP1_2 <- lm(paid_response~new_exp_column*MWer, data = EXP1PostAnalysis)
 summary(PaidMWlmProbeEXP1_2)
+
+PaidMWlmProbeEXP1_2_data <- EXP1PostAnalysis %>%
+  group_by(new_exp_column, MWer) %>%
+  summarise(
+    N = length(subject),
+    mean_value = mean(paid_response),
+    sd_value = sd(paid_response, na.rm = TRUE),
+    se_value = sd_value/sqrt(N),
+    ciMult = qt(0.95/2 + .5, N-1),
+    ci = se_value*ciMult
+  )
+
+ggplot(PaidMWlmProbeEXP1_2_data, aes(x = new_exp_column, y = mean_value, fill = MWer)) +
+  geom_bar(stat = "summary", fun = "mean", position = "dodge") +
+  scale_fill_manual(values = c("Yes" = "blue", "No" = "red")) +
+  geom_errorbar(aes(ymin = mean_value - ci, ymax = mean_value + ci),
+                position = position_dodge(1), width = 0.2) +
+  labs(title = "Average Reported Amount to be Paid to Re-engage With the Task by Probe Condition\nand Mind Wanderer", x = "Experimental Condition", y = "Average Reported Amount to be Paid", fill = "Mind Wanderer") +
+  scale_x_discrete(labels = c("EXP1" = "Interrupting Probe",
+                              "EXP2" = "Post Probe"))
+
+
 
 PaidLmresult <- EXP1PostAnalysis %>%
   group_by(new_exp_column, MWer) %>%
@@ -1868,8 +2264,40 @@ summary(lm(paid_response ~ new_exp_column*MWer*MR1*MR5, data = EXP1PostAnalysis)
 EXP3PostAnalysis <- EFAanalysis %>% filter(new_exp_column != "EXP1")
 EXP3PostAnalysis <- EXP3PostAnalysis %>% filter(new_exp_column != "EXP2")
 
+EXP3PostAnalysis$MWer <- as.factor(EXP3PostAnalysis$MWer)
+EXP3PostAnalysis$new_exp_column <- as.factor(EXP3PostAnalysis$new_exp_column)
+EXP3PostAnalysis$new_cond_column <- as.factor(EXP3PostAnalysis$new_cond_column)
+contrasts(EXP3PostAnalysis$MWer) = contr.sum(2)
+contrasts(EXP3PostAnalysis$new_exp_column) = contr.sum(2)
+contrasts(EXP3PostAnalysis$new_cond_column) = contr.sum(2)
+
+# summary(lm(paid_response ~ new_exp_column*MWer*scale(MR1,scale = F)*scale(MR5,scale = F), data = EXP3PostAnalysis))
+# summary(lm(paid_response ~ new_exp_column+MWer+scale(MR1,scale = F)+scale(MR5,scale = F), data = EXP3PostAnalysis))
+
+
 PaidMWlmProbeEXP3 <- lm(paid_response~MWer*new_exp_column, data = EXP3PostAnalysis)
 summary(PaidMWlmProbeEXP3)
+
+PaidMWlmProbeEXP3 <- lm(paid_response~MWer+new_exp_column, data = EXP3PostAnalysis)
+summary(PaidMWlmProbeEXP3)
+
+set.seed(123)
+library(boot)
+
+rsq_function <- function(formula, data, indices) {
+  d <- data[indices,] #allows boot to select sample
+  fit <- lm(formula, data=d)
+  return(summary(fit)$r.square)
+}
+
+reps <- boot(data=EXP3PostAnalysis, statistic=rsq_function, R=10000, formula=paid_response~new_exp_column+MWer)
+reps
+
+plot(reps)
+
+boot.ci(reps, type="bca")
+
+
 
 PaidLmresultExp3 <- EXP3PostAnalysis %>%
   group_by(new_exp_column, MWer) %>%
@@ -1878,11 +2306,28 @@ PaidLmresultExp3 <- EXP3PostAnalysis %>%
 # Print the result
 print(PaidLmresult)
 
+EFAanalysisnorm <- EFAanalysis
+EFAanalysisnorm$MWer <- as.factor(EFAanalysisnorm$MWer)
+EFAanalysisnorm$new_exp_column <- as.factor(EFAanalysisnorm$new_exp_column)
+EFAanalysisnorm$new_cond_column <- as.factor(EFAanalysisnorm$new_cond_column)
+contrasts(EFAanalysisnorm$MWer) = contr.sum(2)
+contrasts(EFAanalysisnorm$new_exp_column) = contr.sum(4)
+contrasts(EFAanalysisnorm$new_cond_column) = contr.sum(2)
+
+summary(lm(paid_response ~ new_exp_column*MWer*scale(MR1,scale = F)*scale(MR5,scale = F), data = EFAanalysisnorm))
+summary(lm(paid_response ~ new_exp_column+MWer+scale(MR1,scale = F)+scale(MR5,scale = F), data = EFAanalysisnorm))
+summary(lm(MR1 ~ new_exp_column*MWer, data = EFAanalysisnorm))
+summary(lm(MR1 ~ new_exp_column+MWer, data = EFAanalysisnorm))
+summary(lm(MR5 ~ new_exp_column*MWer, data = EFAanalysisnorm))
+summary(lm(MR5 ~ new_exp_column+MWer, data = EFAanalysisnorm))
+summary(lm(paid_response ~ MWer, data = EFAanalysisnorm))
 
 summary(lm(MR1 ~ MWer*new_exp_column, data = EXP3PostAnalysis))
 summary(lm(MR5 ~ MWer*new_exp_column, data = EXP3PostAnalysis))
-summary(lm(paid_response ~ new_exp_column*MWer*MR1*MR5, data = EXP3PostAnalysis))
-
+summary(lm(paid_response ~ new_exp_column*MWer, data = EXP3PostAnalysis))
+summary(lm(paid_response ~ new_exp_column+MWer, data = EXP3PostAnalysis))
+summary(lm(paid_response ~ new_exp_column*MWer*scale(MR1,scale = F)*scale(MR5,scale = F), data = EXP3PostAnalysis))
+summary(lm(paid_response ~ new_exp_column+MWer+scale(MR1,scale = F)*scale(MR5,scale = F), data = EXP3PostAnalysis))
 
 summary(lm(paid_response ~ new_exp_column*MWer*MR1*MR5, data = EFAanalysis))
 
@@ -2012,12 +2457,24 @@ ggplot(OtherCatchTrialslong_data, aes(x = new_exp_column, y = mean_value, fill =
                               "EXP3-TS" = "Letter/Number Task Switch"))
 
 
-summary(lm(MWcatch_response ~ MWer*new_exp_column, data = AllParticipantCatchTrialsNAremoved))
-summary(lm(MWonTask_response ~ MWer*new_exp_column, data = AllParticipantCatchTrialsNAremoved))
-summary(lm(MWother_response ~ MWer*new_exp_column, data = AllParticipantCatchTrialsNAremoved))
+summary(lm(MWcatch_response ~ new_exp_column*new_cond_column, data = AllParticipantCatchTrialsNAremoved))
+summary(lm(MWcatch_response ~ new_exp_column, data = AllParticipantCatchTrialsNAremoved))
+summary(lm(MWcatch_response ~ new_cond_column, data = AllParticipantCatchTrialsNAremoved))
+summary(lm(MWonTask_response ~ new_exp_column*new_cond_column, data = AllParticipantCatchTrialsNAremoved))
+summary(lm(MWonTask_response ~ new_exp_column, data = AllParticipantCatchTrialsNAremoved))
+summary(lm(MWonTask_response ~ new_cond_column, data = AllParticipantCatchTrialsNAremoved))
+summary(lm(MWother_response ~ new_exp_column*new_cond_column, data = AllParticipantCatchTrialsNAremoved))
+summary(lm(MWother_response ~ new_exp_column, data = AllParticipantCatchTrialsNAremoved))
+summary(lm(MWother_response ~ new_cond_column, data = AllParticipantCatchTrialsNAremoved))
 
 
+EFAanalysisnorm %>% group_by(new_exp_column) %>% count(mturk_sona)
 
+tapply(EFAanalysisnorm$paid_response, EFAanalysisnorm$mturk_sona, mean)
+
+aggregate(EFAanalysisnorm$paid_response, 
+                                   by = list(EFAanalysisnorm$new_exp_column, EFAanalysisnorm$mturk_sona), 
+                                   FUN = mean)
 
 ```
 
