@@ -550,6 +550,16 @@ exp1exp2Analysis2$MWer <- as.factor(exp1exp2Analysis2$MWer)
 MWerModel <- glm(formula = MWer ~ new_exp_column * new_cond_column, family = binomial(link = "logit"), 
     data = exp1exp2Analysis2)
 
+exp(Confint(MWerModel))
+
+cor.test(exp1exp2Analysis2$MWer, exp1exp2Analysis2$new_exp_column)
+
+contingency_table <- table(exp1exp2Analysis2$MWer, exp1exp2Analysis2$new_exp_column)
+exp1exp2Analysis3 <- exp1exp2Analysis2[exp1exp2Analysis2$MWer != 'Tie', ]
+exp1exp2Analysis3 <- exp1exp2Analysis2[!(exp1exp2Analysis2$MWer == 'Tie' | exp1exp2Analysis2$new_exp_column == 'Tie'), ]
+exp1exp2Analysis3 <- exp1exp2Analysis2 %>% filter(MWer != "Tie")
+contingency_table <- table(exp1exp2Analysis3$MWer, exp1exp2Analysis3$new_exp_column)
+
 ```
 ```{r}
 ####Analysis of SART Performance
@@ -1105,7 +1115,7 @@ ACCbyMWExp3TS <- ggplot(Experiment3TS, aes(x = MWer, y = correct, fill = MWer)) 
 # Print the plot
 ACCbyMWExp3TS
 
-ACCbyMWExp3TScongruence <- ggplot(Experiment3TS, aes(x = congruence, y = correct, fill = switch)) +
+ACCbyMWExp3TScongruence <- ggplot(Experiment3TS, aes(x = congruence, y = correct, fill = congruence)) +
   stat_summary(
     fun = "mean", 
     geom = "bar", 
@@ -1124,7 +1134,7 @@ ACCbyMWExp3TScongruence <- ggplot(Experiment3TS, aes(x = congruence, y = correct
     x = "Congruence",
     y = "Average Task Switching Accuracy"
   ) +
-  ggtitle(str_wrap("Accuracy of Task Switching Between Congruent by Switch Trials", width = 70)) +
+  ggtitle(str_wrap("Accuracy of Task Switching Between Congruent Trials", width = 70)) +
   theme_minimal() +
   theme(plot.title = element_text(margin = margin(b = 5)))  # Adjust the bottom margin of the title
 
@@ -1151,7 +1161,7 @@ ACCbyMWExp3TSswitch <- ggplot(Experiment3TS, aes(x = switch, y = correct, fill =
     x = "Switch",
     y = "Average Task Switching Accuracy"
   ) +
-  ggtitle(str_wrap("Accuracy of Task Switching Between Switch Conditions", width = 70)) +
+  ggtitle(str_wrap("Accuracy of Task Switching Between Switch Trials", width = 70)) +
   theme_minimal() +
   theme(plot.title = element_text(margin = margin(b = 5)))  # Adjust the bottom margin of the title
 
@@ -2154,8 +2164,9 @@ Engaged2 <- ggplot(EFAanalysis, aes(x = MWer, y = MR5, fill = MWer)) +
   ) +
   labs(
    x = "Task Type",
-    y = "Average Factor5 Ratings",
-    title = "Average Factor5 Ratings Between Task and Mind Wanderers"
+    y = "Average Negative Affect Ratings",
+    title = "Average Negative Affect Ratings Between Those Who Mind Wanderer and Those \nWho Do Not Mind Wander",
+   fill = "Mind Wanderer"  # Change color legend label directly here
   ) +
   theme_minimal()
 Engaged2
@@ -2177,14 +2188,16 @@ EXP1PostAnalysis <- EFAanalysis %>% filter(new_exp_column != "EXP3-SART")
 EXP1PostAnalysis <- EXP1PostAnalysis %>% filter(new_exp_column != "EXP3-TS")
 
 summary(lm(MR1 ~ MWer*new_exp_column, data = EXP1PostAnalysis))
+confint(lm(MR1 ~ MWer*new_exp_column, data = EXP1PostAnalysis))
 summary(lm(MR5 ~ MWer*new_exp_column, data = EXP1PostAnalysis))
 
-PaidMWlmProbeEXP1 <- lm(paid_response~new_exp_column*new_cond_column, data = EXP1PostAnalysis)
+PaidMWlmProbeEXP1 <- lm(paid_response~new_exp_column*new_cond_column, data = EXP1PostAnalysis, contrasts = list(new_exp_column = "contr.sum", new_cond_column = "contr.sum"))
 summary(PaidMWlmProbeEXP1)
+confint(PaidMWlmProbeEXP1)
 
-PaidMWlmProbeEXP1 <- lm(paid_response~new_exp_column+new_cond_column, data = EXP1PostAnalysis)
+PaidMWlmProbeEXP1 <- lm(paid_response~new_exp_column+new_cond_column, data = EXP1PostAnalysis, contrasts = list(new_exp_column = "contr.sum", new_cond_column = "contr.sum"))
 summary(PaidMWlmProbeEXP1)
-
+confint(PaidMWlmProbeEXP1)
 
 PaidMWlmProbeEXP1_data <- EXP1PostAnalysis %>%
   group_by(new_exp_column) %>%
@@ -2225,9 +2238,9 @@ ggplot(PaidMWlmProbeEXP1_data, aes(x = new_exp_column, y = mean_value)) +
   )) +
   theme(legend.position = "none")
 
-PaidMWlmProbeEXP1_2 <- lm(paid_response~new_exp_column*MWer, data = EXP1PostAnalysis)
+PaidMWlmProbeEXP1_2 <- lm(paid_response~new_exp_column*MWer, data = EXP1PostAnalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum"))
 summary(PaidMWlmProbeEXP1_2)
-
+confint(PaidMWlmProbeEXP1_2)
 PaidMWlmProbeEXP1_2_data <- EXP1PostAnalysis %>%
   group_by(new_exp_column, MWer) %>%
   summarise(
@@ -2275,11 +2288,13 @@ contrasts(EXP3PostAnalysis$new_cond_column) = contr.sum(2)
 # summary(lm(paid_response ~ new_exp_column+MWer+scale(MR1,scale = F)+scale(MR5,scale = F), data = EXP3PostAnalysis))
 
 
-PaidMWlmProbeEXP3 <- lm(paid_response~MWer*new_exp_column, data = EXP3PostAnalysis)
+PaidMWlmProbeEXP3 <- lm(paid_response~MWer*new_exp_column, data = EXP3PostAnalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum"))
 summary(PaidMWlmProbeEXP3)
+confint(PaidMWlmProbeEXP3)
 
-PaidMWlmProbeEXP3 <- lm(paid_response~MWer+new_exp_column, data = EXP3PostAnalysis)
+PaidMWlmProbeEXP3 <- lm(paid_response~MWer+new_exp_column, data = EXP3PostAnalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum"))
 summary(PaidMWlmProbeEXP3)
+confint(PaidMWlmProbeEXP3)
 
 set.seed(123)
 library(boot)
@@ -2290,17 +2305,71 @@ rsq_function <- function(formula, data, indices) {
   return(summary(fit)$r.square)
 }
 
-reps <- boot(data=EXP3PostAnalysis, statistic=rsq_function, R=10000, formula=paid_response~new_exp_column+MWer)
-reps
+boot_model <- lm(paid_response~new_exp_column+MWer, data = EXP3PostAnalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum"))
+reps <- Boot(boot_model, R = 1000)
+#reps <- boot(data=EXP3PostAnalysis, statistic=rsq_function, R=10000, formula=paid_response~new_exp_column+MWer)
+summary(reps)
 
+confint(reps,  level = .95)
 plot(reps)
 
 boot.ci(reps, type="bca")
 
+PaidMWlmProbeEXP2_data <- EXP3PostAnalysis %>%
+  group_by(new_exp_column) %>%
+  summarise(
+    N = length(subject),
+    mean_value = mean(paid_response),
+    sd_value = sd(paid_response, na.rm = TRUE),
+    se_value = sd_value/sqrt(N),
+    ciMult = qt(0.95/2 + .5, N-1),
+    ci = se_value*ciMult
+  )
 
+
+
+#With the legend removed
+ggplot(PaidMWlmProbeEXP2_data, aes(x = new_exp_column, y = mean_value)) +
+  geom_bar(stat = "summary", aes(fill = new_exp_column), fun = "mean", position = "dodge") +
+  geom_errorbar(aes(ymin = mean_value - ci, ymax = mean_value + ci),
+                position = position_dodge(1), width = 0.2) +
+  labs(title = "Average Reported Amount to be Paid to Re-engage With the Task by Experimental Condition",
+       x = "Experimental Task",
+       y = "Average Reported Amount to be Paid") +
+  scale_x_discrete(labels = c("EXP3-SART" = "SART Task",
+                              "EXP3-TS" = "Task Switching Paradigm"
+  )) +
+  theme(legend.position = "none")
+
+
+PaidMWlmProbeEXP2_2_data <- EXP3PostAnalysis %>%
+  group_by(new_exp_column, MWer) %>%
+  summarise(
+    N = length(subject),
+    mean_value = mean(paid_response),
+    sd_value = sd(paid_response, na.rm = TRUE),
+    se_value = sd_value/sqrt(N),
+    ciMult = qt(0.95/2 + .5, N-1),
+    ci = se_value*ciMult
+  )
+
+#With the legend
+ ggplot(PaidMWlmProbeEXP2_2_data, aes(x = new_exp_column, y = mean_value, fill = MWer)) +
+   geom_bar(stat = "summary", fun = "mean", position = "dodge") +
+   scale_fill_manual(values = c("blue", "red"), 
+                     labels = c("No", "Yes"),
+                     name = "Probe Condition") +
+   geom_errorbar(aes(ymin = mean_value - ci, ymax = mean_value + ci),
+                 position = position_dodge(1), width = 0.2) +
+   labs(title = "Average Reported Amount to be Paid to Re-engage With the Task by Experimental\nCondition and Mind Wanderer",
+        x = "Probe Condition",
+        y = "Average Reported Amount to be Paid") +
+   scale_x_discrete(labels = c("EXP3-SART" = "SART Task",
+                              "EXP3-TS" = "Task Switching Paradigm"
+   ))
 
 PaidLmresultExp3 <- EXP3PostAnalysis %>%
-  group_by(new_exp_column, MWer) %>%
+  group_by(new_exp_column) %>%
   summarize(mean_value = mean(paid_response))
 
 # Print the result
@@ -2314,13 +2383,23 @@ contrasts(EFAanalysisnorm$MWer) = contr.sum(2)
 contrasts(EFAanalysisnorm$new_exp_column) = contr.sum(4)
 contrasts(EFAanalysisnorm$new_cond_column) = contr.sum(2)
 
-summary(lm(paid_response ~ new_exp_column*MWer*scale(MR1,scale = F)*scale(MR5,scale = F), data = EFAanalysisnorm))
-summary(lm(paid_response ~ new_exp_column+MWer+scale(MR1,scale = F)+scale(MR5,scale = F), data = EFAanalysisnorm))
-summary(lm(MR1 ~ new_exp_column*MWer, data = EFAanalysisnorm))
-summary(lm(MR1 ~ new_exp_column+MWer, data = EFAanalysisnorm))
-summary(lm(MR5 ~ new_exp_column*MWer, data = EFAanalysisnorm))
-summary(lm(MR5 ~ new_exp_column+MWer, data = EFAanalysisnorm))
-summary(lm(paid_response ~ MWer, data = EFAanalysisnorm))
+#summary(lm(paid_response ~ new_exp_column*MWer*scale(MR1,scale = F)*scale(MR5,scale = F), data = EFAanalysisnorm))
+summary(lm(paid_response~new_exp_column*MWer*scale(MR1,scale = F)*scale(MR5,scale = F), data = EFAanalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum")))
+#summary(lm(paid_response ~ new_exp_column+MWer+scale(MR1,scale = F)+scale(MR5,scale = F), data = EFAanalysisnorm))
+summary(lm(paid_response~new_exp_column+MWer+scale(MR1,scale = F)+scale(MR5,scale = F), data = EFAanalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum")))
+#summary(lm(MR1 ~ new_exp_column*MWer, data = EFAanalysisnorm))
+summary(lm(MR1~new_exp_column*MWer, data = EFAanalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum")))
+confint(lm(MR1~new_exp_column*MWer, data = EFAanalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum")))
+#summary(lm(MR1 ~ new_exp_column+MWer, data = EFAanalysisnorm))
+summary(lm(MR1~new_exp_column+MWer, data = EFAanalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum")))
+#summary(lm(MR5 ~ new_exp_column*MWer, data = EFAanalysisnorm))
+summary(lm(MR5~new_exp_column*MWer, data = EFAanalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum")))
+confint(lm(MR5~new_exp_column*MWer, data = EFAanalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum")))
+#summary(lm(MR5 ~ new_exp_column+MWer, data = EFAanalysisnorm))
+summary(lm(MR5~new_exp_column+MWer, data = EFAanalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum")))
+#summary(lm(paid_response ~ MWer, data = EFAanalysisnorm))
+summary(lm(paid_response~MWer, data = EFAanalysis, contrasts = list(MWer = "contr.sum")))
+confint(lm(paid_response~MWer, data = EFAanalysis, contrasts = list(MWer = "contr.sum")))
 
 summary(lm(MR1 ~ MWer*new_exp_column, data = EXP3PostAnalysis))
 summary(lm(MR5 ~ MWer*new_exp_column, data = EXP3PostAnalysis))
