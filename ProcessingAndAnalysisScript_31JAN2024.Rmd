@@ -2067,6 +2067,9 @@ summary(lm(GTQ_response ~ MWer+new_exp_column+MR1+MR5, data = EFAanalysis))
 ggplot(EFAanalysis, aes(x = MR1, color = MWer)) +
   geom_density()
 
+ggplot(EFAanalysis, aes(x = MR3, color = Probe)) +
+  geom_density()
+
 Misery <- ggplot(EFAanalysis, aes(x = new_exp_column, y = MR1, fill = MWer)) +
   stat_summary(
     fun = "mean", 
@@ -2191,13 +2194,24 @@ summary(lm(MR1 ~ MWer*new_exp_column, data = EXP1PostAnalysis))
 confint(lm(MR1 ~ MWer*new_exp_column, data = EXP1PostAnalysis))
 summary(lm(MR5 ~ MWer*new_exp_column, data = EXP1PostAnalysis))
 
+EXP1PostAnalysis$Probe <- recode(EXP1PostAnalysis$new_exp_column, "'EXP1' = 'IP'; 'EXP2' = 'PP'; 'EXP3-SART' = 'PP'; 'EXP3-TS' = 'PP'", T, F)
+EXP1PostAnalysis$Task <- recode(EXP1PostAnalysis$new_exp_column, "'EXP1' = 'SART'; 'EXP2' = 'SART'; 'EXP3-SART' = 'SART'; 'EXP3-TS' = 'TS'", T, F)
+table(EXP1PostAnalysis$Probe, EXP1PostAnalysis$Task)
+
+EXP1PostAnalysis$MW <- recode(EXP1PostAnalysis$MWer, "'Yes' = 'MW'; 'No' = 'NMW'", T, F)
+
+#Use This Code
+PaidMWlmProbeEXP1 <- lm(paid_response~Probe*MW, data = EXP1PostAnalysis, contrasts = list(Probe = "contr.sum", MW = "contr.sum"))
+summary(PaidMWlmProbeEXP1)
+confint(PaidMWlmProbeEXP1)
+table(EXP1PostAnalysis$Probe, EXP1PostAnalysis$MW)
+#
+
 PaidMWlmProbeEXP1 <- lm(paid_response~new_exp_column*new_cond_column, data = EXP1PostAnalysis, contrasts = list(new_exp_column = "contr.sum", new_cond_column = "contr.sum"))
 summary(PaidMWlmProbeEXP1)
 confint(PaidMWlmProbeEXP1)
 
-PaidMWlmProbeEXP1 <- lm(paid_response~new_exp_column+new_cond_column, data = EXP1PostAnalysis, contrasts = list(new_exp_column = "contr.sum", new_cond_column = "contr.sum"))
-summary(PaidMWlmProbeEXP1)
-confint(PaidMWlmProbeEXP1)
+
 
 PaidMWlmProbeEXP1_data <- EXP1PostAnalysis %>%
   group_by(new_exp_column) %>%
@@ -2238,11 +2252,11 @@ ggplot(PaidMWlmProbeEXP1_data, aes(x = new_exp_column, y = mean_value)) +
   )) +
   theme(legend.position = "none")
 
-PaidMWlmProbeEXP1_2 <- lm(paid_response~new_exp_column*MWer, data = EXP1PostAnalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum"))
+PaidMWlmProbeEXP1_2 <- lm(paid_response~Probe*MW, data = EXP1PostAnalysis, contrasts = list(Probe = "contr.sum", MW = "contr.sum"))
 summary(PaidMWlmProbeEXP1_2)
 confint(PaidMWlmProbeEXP1_2)
 PaidMWlmProbeEXP1_2_data <- EXP1PostAnalysis %>%
-  group_by(new_exp_column, MWer) %>%
+  group_by(Probe, MW) %>%
   summarise(
     N = length(subject),
     mean_value = mean(paid_response),
@@ -2252,14 +2266,14 @@ PaidMWlmProbeEXP1_2_data <- EXP1PostAnalysis %>%
     ci = se_value*ciMult
   )
 
-ggplot(PaidMWlmProbeEXP1_2_data, aes(x = new_exp_column, y = mean_value, fill = MWer)) +
+ggplot(PaidMWlmProbeEXP1_2_data, aes(x = Probe, y = mean_value, fill = MW)) +
   geom_bar(stat = "summary", fun = "mean", position = "dodge") +
-  scale_fill_manual(values = c("Yes" = "blue", "No" = "red")) +
+  scale_fill_manual(values = c("MW" = "blue", "NMW" = "red")) +
   geom_errorbar(aes(ymin = mean_value - ci, ymax = mean_value + ci),
                 position = position_dodge(1), width = 0.2) +
-  labs(title = "Average Reported Amount to be Paid to Re-engage With the Task by Probe Condition\nand Mind Wanderer", x = "Experimental Condition", y = "Average Reported Amount to be Paid", fill = "Mind Wanderer") +
-  scale_x_discrete(labels = c("EXP1" = "Interrupting Probe",
-                              "EXP2" = "Post Probe"))
+  labs(title = "Average Reported Amount to be Paid to Re-engage With the Task by Probe Condition\nand Mind Wanderer", x = "Probe Condition", y = "Average Reported Amount to be Paid", fill = "Mind Wanderer") +
+  scale_x_discrete(labels = c("IP" = "Interrupting Probe",
+                              "PP" = "Post Probe"))
 
 
 
@@ -2269,6 +2283,10 @@ PaidLmresult <- EXP1PostAnalysis %>%
 
 # Print the result
 print(PaidLmresult)
+
+#
+table(EFAanalysis$new_exp_column, EFAanalysis$new_cond_column)
+
 
 #Do our factors from the EFA, along with mind wandering, affect willingness to reengage?
 summary(lm(paid_response ~ new_exp_column*MWer*MR1*MR5, data = EXP1PostAnalysis))
@@ -2288,7 +2306,7 @@ contrasts(EXP3PostAnalysis$new_cond_column) = contr.sum(2)
 # summary(lm(paid_response ~ new_exp_column+MWer+scale(MR1,scale = F)+scale(MR5,scale = F), data = EXP3PostAnalysis))
 
 
-PaidMWlmProbeEXP3 <- lm(paid_response~MWer*new_exp_column, data = EXP3PostAnalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum"))
+PaidMWlmProbeEXP3 <- lm(paid_response~mturk_sona+MW+Task+mturk_sona:Task, data = EXP3PostAnalysis, contrasts = list(mturk_sona = "contr.sum", Task = "contr.sum", MW = "contr.sum"))
 summary(PaidMWlmProbeEXP3)
 confint(PaidMWlmProbeEXP3)
 
@@ -2343,7 +2361,7 @@ ggplot(PaidMWlmProbeEXP2_data, aes(x = new_exp_column, y = mean_value)) +
 
 
 PaidMWlmProbeEXP2_2_data <- EXP3PostAnalysis %>%
-  group_by(new_exp_column, MWer) %>%
+  group_by(Probe, MW) %>%
   summarise(
     N = length(subject),
     mean_value = mean(paid_response),
@@ -2388,12 +2406,274 @@ summary(lm(paid_response~new_exp_column*MWer*scale(MR1,scale = F)*scale(MR5,scal
 #summary(lm(paid_response ~ new_exp_column+MWer+scale(MR1,scale = F)+scale(MR5,scale = F), data = EFAanalysisnorm))
 summary(lm(paid_response~new_exp_column+MWer+scale(MR1,scale = F)+scale(MR5,scale = F), data = EFAanalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum")))
 #summary(lm(MR1 ~ new_exp_column*MWer, data = EFAanalysisnorm))
-summary(lm(MR1~new_exp_column*MWer, data = EFAanalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum")))
+
+EFAanalysis$Probe <- recode(EFAanalysis$new_exp_column, "'EXP1' = 'IP'; 'EXP2' = 'PP'; 'EXP3-SART' = 'PP'; 'EXP3-TS' = 'PP'", T, F)
+EFAanalysis$Task <- recode(EFAanalysis$new_exp_column, "'EXP1' = 'SART'; 'EXP2' = 'SART'; 'EXP3-SART' = 'SART'; 'EXP3-TS' = 'TS'", T, F)
+table(EFAanalysis$Probe, EFAanalysis$Task)
+
+EFAanalysis$MW <- recode(EFAanalysis$MWer, "'Yes' = 'MW'; 'No' = 'NMW'", T, F)
+
+#report this model - relevel the MWer factor so Yes is first
+Foo <- lm(MR1~Probe+Task+MW+Probe:MW, data = EFAanalysis, contrasts = list(Probe = "contr.sum", Task = "contr.sum", MW = "contr.sum"))
+confint(Foo)
+summary(Foo)
+
+MR1MWlmProbeEFAanalysis_data <- EFAanalysis %>%
+  group_by(Probe, MW) %>%
+  summarise(
+    N = length(subject),
+    mean_value = mean(MR1),
+    sd_value = sd(MR1, na.rm = TRUE),
+    se_value = sd_value/sqrt(N),
+    ciMult = qt(0.95/2 + .5, N-1),
+    ci = se_value*ciMult
+  )
+
+ggplot(MR1MWlmProbeEFAanalysis_data, aes(x = Probe, y = mean_value, fill = MW)) +
+  geom_bar(stat = "summary", fun = "mean", position = "dodge") +
+  scale_fill_manual(values = c("MW" = "blue", "NMW" = "red"),
+                    labels = c("MW" = "Mind Wanderer", "NMW" = "Not Mind Wanderer")) +
+  geom_errorbar(aes(ymin = mean_value - ci, ymax = mean_value + ci),
+                position = position_dodge(1), width = 0.2) +
+  labs(title = "Average Positive Affect Factor Scores by Probe Condition and Mind Wanderer", x = "Probe Condition", y = "Average Positive Affect Factor Scores", fill = "Mind Wanderer") +
+  scale_x_discrete(labels = c("IP" = "Interrupting Probe",
+                              "PP" = "Post Probe"))
+
+MR1plot <- ggplot(EFAanalysis, aes(x = MW, y = MR1, fill = MW)) + 
+  geom_violin(trim = FALSE) +
+  labs(title = "Average Positive Affect Factor Scores by Mind Wanderer", 
+       x = "Mind Wanderer", 
+       y = "Average Positive Affect Factor Scores",
+       fill = "Mind Wanderer") +
+  scale_x_discrete(labels = c("MW" = "Mind Wanderer", "NMW" = "Not Mind Wanderer")) +
+  scale_fill_manual(values = c("MW" = "blue", "NMW" = "red"),
+                    labels = c("MW" = "Mind Wanderer", "NMW" = "Not Mind Wanderer"))
+
+MR1plot + stat_summary(fun.data="mean_sdl", mult=1, 
+                 geom="crossbar", width=0.2 )
+MR1plot + stat_summary(fun.data=mean_sdl, mult=1, 
+                 geom="pointrange", color="black")
+
+MR1plot_2 <- ggplot(EFAanalysis, aes(x = Probe, y = MR1, fill = Probe)) + 
+  geom_violin(trim = FALSE) +
+  labs(title = "Average Positive Affect Factor Scores by Probe Condition", 
+       x = "Probe", 
+       y = "Average Positive Affect Factor Scores",
+       fill = "Probe Condition") +
+  scale_x_discrete(labels = c("IP" = "Interrupting Probe", "PP" = "Post Probe")) +
+  scale_fill_manual(values = c("IP" = "blue", "PP" = "red"),
+                    labels = c("IP" = "Interrupting Probe", "PP" = "Post Probe"))
+
+MR1plot_2 + stat_summary(fun.data="mean_sdl", mult=1, 
+                 geom="crossbar", width=0.2 )
+MR1plot_2 + stat_summary(fun.data=mean_sdl, mult=1, 
+                 geom="pointrange", color="black")
+
+Foo <- lm(MR2~Probe+Task+MW+Probe:MW, data = EFAanalysis, contrasts = list(Probe = "contr.sum", Task = "contr.sum", MW = "contr.sum"))
+confint(Foo)
+summary(Foo)
+
+#Violin Plots
+MR2plot <- ggplot(EFAanalysis, aes(x = MW, y = MR2, fill = MW)) + 
+  geom_violin(trim = FALSE) +
+  labs(title = "Average Stress Factor Scores by Mind Wanderer", 
+       x = "Mind Wanderer", 
+       y = "Average Stress Factor Scores",
+       fill = "Mind Wanderer") +
+  scale_x_discrete(labels = c("MW" = "Mind Wanderer", "NMW" = "Not Mind Wanderer")) +
+  scale_fill_manual(values = c("MW" = "blue", "NMW" = "red"),
+                    labels = c("MW" = "Mind Wanderer", "NMW" = "Not Mind Wanderer"))
+
+MR2plot + stat_summary(fun.data="mean_sdl", mult=1, 
+                 geom="crossbar", width=0.2 )
+MR2plot + stat_summary(fun.data=mean_sdl, mult=1, 
+                 geom="pointrange", color="black")
+
+Foo <- lm(MR3~Probe+Task+MW+Probe:MW, data = EFAanalysis, contrasts = list(Probe = "contr.sum", Task = "contr.sum", MW = "contr.sum"))
+confint(Foo)
+summary(Foo)
+
+MR3MWlmProbeEFAanalysis_data <- EFAanalysis %>%
+  group_by(Probe) %>%
+  summarise(
+    N = length(subject),
+    mean_value = mean(MR1),
+    sd_value = sd(MR1, na.rm = TRUE),
+    se_value = sd_value/sqrt(N),
+    ciMult = qt(0.95/2 + .5, N-1),
+    ci = se_value*ciMult
+  )
+
+ggplot(MR3MWlmProbeEFAanalysis_data, aes(x = Probe, y = mean_value, fill = Probe)) +
+  geom_bar(stat = "summary", fun = "mean", position = "dodge") +
+  scale_fill_manual(values = c("IP" = "blue", "PP" = "red"),
+                    labels = c("IP" = "Interrupting Probe", "PP" = "Post Probe")) +
+  geom_errorbar(aes(ymin = mean_value - ci, ymax = mean_value + ci),
+                position = position_dodge(1), width = 0.2) +
+  labs(title = "Average GTQ Scores by Probe Condition", x = "Probe Condition", y = "Average GTQ Scores", fill = "Probe Condition") +
+  scale_x_discrete(labels = c("IP" = "Interrupting Probe",
+                              "PP" = "Post Probe"))
+
+#Violin Plots
+MR3plot <- ggplot(EFAanalysis, aes(x = Probe, y = MR3, fill = Probe)) + 
+  geom_violin(trim = FALSE) +
+  labs(title = "Average GTQ Factor Scores by Probe Condition", 
+       x = "Probe", 
+       y = "Average GTQ Factor Scores",
+       fill = "Probe Condition") +
+  scale_x_discrete(labels = c("IP" = "Interrupting Probe", "PP" = "Post Probe")) +
+  scale_fill_manual(values = c("IP" = "blue", "PP" = "red"),
+                    labels = c("IP" = "Interrupting Probe", "PP" = "Post Probe"))
+
+MR3plot + stat_summary(fun.data="mean_sdl", mult=1, 
+                 geom="crossbar", width=0.2 )
+MR3plot + stat_summary(fun.data=mean_sdl, mult=1, 
+                 geom="pointrange", color="black")
+
+Foo <- lm(MR4~Probe+Task+MW+Probe:MW, data = EFAanalysis, contrasts = list(Probe = "contr.sum", Task = "contr.sum", MW = "contr.sum"))
+confint(Foo)
+summary(Foo)
+
+
+Foo <- lm(MR5~Probe+Task+MW+Probe:MW, data = EFAanalysis, contrasts = list(Probe = "contr.sum", Task = "contr.sum", MW = "contr.sum"))
+summary(Foo)
+confint(Foo)
+
+MR5plot <- ggplot(EFAanalysis, aes(x = MW, y = MR5, fill = MW)) + 
+  geom_violin(trim = FALSE) +
+  labs(title = "Average Stress Factor Scores by Mind Wanderer", 
+       x = "Mind Wanderer", 
+       y = "Average Stress Factor Scores",
+       fill = "Mind Wanderer") +
+  scale_x_discrete(labels = c("MW" = "Mind Wanderer", "NMW" = "Not Mind Wanderer")) +
+  scale_fill_manual(values = c("MW" = "blue", "NMW" = "red"),
+                    labels = c("MW" = "Mind Wanderer", "NMW" = "Not Mind Wanderer"))
+
+MR5plot + stat_summary(fun.data="mean_sdl", mult=1, 
+                 geom="crossbar", width=0.2 )
+MR5plot + stat_summary(fun.data=mean_sdl, mult=1, 
+                 geom="pointrange", color="black")
+#dropping mturk_sona - too unbalanced, mturk is disproportionate of PP to IP, is a confound, not orthogonal.  too much of a proxy variable.  But leave in for the paid response models.  The effects are big for probe.
+
+######################################################################################################################Ignore the following
+#####################################################################################################################
+# Foo <- lm(MR1~mturk_sona+Probe+Task+MW+Probe:MW, data = EFAanalysis, contrasts = list(Probe = "contr.sum", Task = "contr.sum", MW = "contr.sum"))
+# summary(Foo)
+# confint(Foo)
+# 
+# 
+# 
+# 
+# Foo <- lm(MR2~mturk_sona+Probe+Task+MW+Probe:MW, data = EFAanalysis, contrasts = list(Probe = "contr.sum", Task = "contr.sum", MW = "contr.sum"))
+# 
+# summary(Foo)
+# 
+# Foo <- lm(MR3~mturk_sona+Probe+Task+MW+Probe:MW, data = EFAanalysis, contrasts = list(Probe = "contr.sum", Task = "contr.sum", MW = "contr.sum"))
+# confint(Foo)
+# summary(Foo)
+# 
+# 
+# 
+# Foo <- lm(MR4~mturk_sona+Probe+Task+MW+Probe:MW, data = EFAanalysis, contrasts = list(Probe = "contr.sum", Task = "contr.sum", MW = "contr.sum"))
+# 
+# summary(Foo)
+# 
+# 
+# Foo <- lm(MR5~mturk_sona+Probe+Task+MW+Probe:MW, data = EFAanalysis, contrasts = list(Probe = "contr.sum", Task = "contr.sum", MW = "contr.sum"))
+# summary(Foo)
+# 
+# table(EFAanalysis$mturk_sona, EFAanalysis$Probe)
+# 
+# Foo <- lm(MR5~Probe*Task*MW, data = EFAanalysis, contrasts = list(Probe = "contr.sum", Task = "contr.sum", MW = "contr.sum"))
+# 
+# summary(Foo)
+# 
+# 
+# 
+# 
+# Foo <- lm(paid_response~Probe+Task+MW+Probe:MW, data = EFAanalysis, contrasts = list(Probe = "contr.sum", Task = "contr.sum", MW = "contr.sum"))
+# 
+# summary(Foo)
+# 
+# PaidMWlmProbeEFA_2_data <- EFAanalysis %>%
+#   group_by(Probe, MW) %>%
+#   summarise(
+#     N = length(subject),
+#     mean_value = mean(paid_response),
+#     sd_value = sd(paid_response, na.rm = TRUE),
+#     se_value = sd_value/sqrt(N),
+#     ciMult = qt(0.95/2 + .5, N-1),
+#     ci = se_value*ciMult
+#   )
+# 
+# ggplot(PaidMWlmProbeEFA_2_data, aes(x = Probe, y = mean_value, fill = MW)) +
+#   geom_bar(stat = "summary", fun = "mean", position = "dodge") +
+#   scale_fill_manual(values = c("MW" = "blue", "NMW" = "red")) +
+#   geom_errorbar(aes(ymin = mean_value - ci, ymax = mean_value + ci),
+#                 position = position_dodge(1), width = 0.2) +
+#   labs(title = "Average Reported Amount to be Paid to Re-engage With the Task by Probe Condition\nand Mind Wanderer", x = "Probe Condition", y = "Average Reported Amount to be Paid", fill = "Mind Wanderer") +
+#   scale_x_discrete(labels = c("IP" = "Interrupting Probe",
+#                               "PP" = "Post Probe"))
+# 
+# 
+# 
+# Foo <- lm(paid_response~Probe+Task+MW+Probe:MW+Task:MW, data = EFAanalysis, contrasts = list(Probe = "contr.sum", Task = "contr.sum", MW = "contr.sum"))
+# 
+# summary(Foo)
+# 
+# Foo <- lm(paid_response~Probe+Task+MW+Probe:MW, data = EFAanalysis, contrasts = list(Probe = "contr.sum", Task = "contr.sum", MW = "contr.sum"))
+# 
+# summary(Foo)
+# 
+# Foo <- lm(paid_response~Probe+Task+MW+Task:MW, data = EFAanalysis, contrasts = list(Probe = "contr.sum", Task = "contr.sum", MW = "contr.sum"))
+# 
+# summary(Foo)
+#####################################################################################################################
+EFAanalysis$mturk_sona <- as.factor(EFAanalysis$mturk_sona)
+
+#Use this for the report
+Foo <- lm(paid_response~mturk_sona+Probe+MW+Task+Probe:MW , data = EFAanalysis, contrasts = list(mturk_sona = "contr.sum", Probe = "contr.sum", Task = "contr.sum", MW = "contr.sum"))
+summary(Foo)
+confint(Foo)
+
+
+# Foo <- lm(paid_response~MW, data = EFAanalysis, contrasts = list(Probe = "contr.sum", Task = "contr.sum", MW = "contr.sum"))
+# 
+# summary(Foo)
+# 
+# table(EFAanalysis$Probe, EFAanalysis$MW)
+# 
+# Foo <- lm(MR3~Probe*Task*MW, data = EFAanalysis, contrasts = list(Probe = "contr.sum", Task = "contr.sum", MW = "contr.sum"))
+# 
+# summary(Foo)
+# 
+# Foo <- lm(MR3~Probe+Task+MW+Probe:MW, data = EFAanalysis, contrasts = list(Probe = "contr.sum", Task = "contr.sum", MW = "contr.sum"))
+# 
+# summary(Foo)
+# 
+# Foo <- lm(MR4~Probe*Task*MW, data = EFAanalysis, contrasts = list(Probe = "contr.sum", Task = "contr.sum", MW = "contr.sum"))
+# 
+# summary(Foo)
+# 
+# Foo <- lm(MR2~Probe*Task*MW, data = EFAanalysis, contrasts = list(Probe = "contr.sum", Task = "contr.sum", MW = "contr.sum"))
+# 
+# summary(Foo)
+
+
+# summary(lm(MR1~new_exp_column*MWer, data = EFAanalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum")))
 confint(lm(MR1~new_exp_column*MWer, data = EFAanalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum")))
 #summary(lm(MR1 ~ new_exp_column+MWer, data = EFAanalysisnorm))
 summary(lm(MR1~new_exp_column+MWer, data = EFAanalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum")))
 #summary(lm(MR5 ~ new_exp_column*MWer, data = EFAanalysisnorm))
+
 summary(lm(MR5~new_exp_column*MWer, data = EFAanalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum")))
+
+table(EFAanalysis$Probe, EFAanalysis$MWer)
+table(EFAanalysis$Task, EFAanalysis$MWer)
+
+vif(Foo) #colinearity, multi colinearity not enough to change the effects
+
+# summary(lm(MR5~new_exp_column*MWer, data = EFAanalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum")))
 confint(lm(MR5~new_exp_column*MWer, data = EFAanalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum")))
 #summary(lm(MR5 ~ new_exp_column+MWer, data = EFAanalysisnorm))
 summary(lm(MR5~new_exp_column+MWer, data = EFAanalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum")))
