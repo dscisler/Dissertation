@@ -227,7 +227,7 @@ df <- df %>%
 # Remove temporary conditions
 rm(condition1, condition2, condition3, condition4, condition5, condition6, condition7, condition8)
 
-df$mturk_sona <- ifelse(grepl("mturk", df$source.x), 1, 2)
+df$mturk_sona <- ifelse(grepl("mturk", df$source.x), "MT", "SS")
 
 
 ```
@@ -301,7 +301,7 @@ df %>% group_by(new_exp_column, new_cond_column) %>% summarize(num_people = n_di
 
 
 #Additional Outliers Identified 
-outliers_remove <- c('511196234', '864810148', '684125186', '538020870')
+outliers_remove <- c('511196234', '864810148', '684125186', '538020870', '919874702', '508666212')
 #511196234, 864810148, 684125186, 538020870
 
 df <- df[!df$subject %in% outliers_remove, ]
@@ -356,7 +356,7 @@ create_checksum <- function(dataframe) {
 # Print the checksum
 #print(MindWanderingDissertation)
 
-#write.csv(CompleteDataSet, "C:/Users/Cisler/Desktop/Data/For Analysis/CompleteDataSet.csv")
+#write.csv(df, "C:/Users/Cisler/Desktop/Data/For Analysis/CompleteDataSet.csv")
 
 
 
@@ -414,10 +414,10 @@ EXP1df <- EXP1df %>% filter(grepl('probe', trialcode))
 EXP1df <- EXP1df %>% filter(!grepl('probe2', trialcode))
 #ProbeRespons$filt <- ProbeRespons$filt %>% replace_na('filter1')
 
-EXP1probe <- EXP1df %>% dplyr::select(subject, new_exp_column, new_cond_column, response, paid_response)
+EXP1probe <- EXP1df %>% dplyr::select(subject, new_exp_column, new_cond_column, response, paid_response, mturk_sona)
 EXP1probe <- EXP1probe %>% rename(probe_response = response)
 
-EXP2probe <- EXP2df %>% dplyr::select(subject, new_exp_column, new_cond_column, probe_response, paid_response)
+EXP2probe <- EXP2df %>% dplyr::select(subject, new_exp_column, new_cond_column, probe_response, paid_response, mturk_sona)
 EXP2probe <- EXP2probe[!duplicated(EXP2probe$subject), ]
 
 ProbeRespons <- rbind(EXP1probe, EXP2probe)
@@ -547,18 +547,21 @@ exp1exp2Analysis2$MWer <- as.factor(exp1exp2Analysis2$MWer)
 # write.csv(exp1exp2Analysis2, "C:/Users/Cisler/Desktop/Data/For Analysis/ProbeAnalysisForRQs1and2.csv")
 # write.csv(df, "C:/Users/Cisler/Desktop/Data/For Analysis/CompleteDatasetWithTransformationsAndModifications_17JAN2024.csv")
 
-MWerModel <- glm(formula = MWer ~ new_exp_column * new_cond_column, family = binomial(link = "logit"), 
+MWerModel <- glm(formula = MWer ~ mturk_sona + new_exp_column + new_cond_column + new_exp_column:new_cond_column + mturk_sona:new_cond_column, family = binomial(link = "logit"), 
     data = exp1exp2Analysis2)
-
+summary(MWerModel)
+exp(MWerModel$coefficients)
 exp(Confint(MWerModel))
 
-cor.test(exp1exp2Analysis2$MWer, exp1exp2Analysis2$new_exp_column)
+#cor.test(exp1exp2Analysis2$MWer, exp1exp2Analysis2$new_exp_column)
 
 contingency_table <- table(exp1exp2Analysis2$MWer, exp1exp2Analysis2$new_exp_column)
 exp1exp2Analysis3 <- exp1exp2Analysis2[exp1exp2Analysis2$MWer != 'Tie', ]
 exp1exp2Analysis3 <- exp1exp2Analysis2[!(exp1exp2Analysis2$MWer == 'Tie' | exp1exp2Analysis2$new_exp_column == 'Tie'), ]
 exp1exp2Analysis3 <- exp1exp2Analysis2 %>% filter(MWer != "Tie")
 contingency_table <- table(exp1exp2Analysis3$MWer, exp1exp2Analysis3$new_exp_column)
+interaction_table <- xtabs(~ MWer + new_exp_column + mturk_sona, data = exp1exp2Analysis2)
+
 
 ```
 ```{r}
@@ -637,7 +640,10 @@ QualCheck2_2 <- SARTexp1exp2 %>% filter(subject == "197955474")
 # RTlm <- lm(latency~new_exp_column*new_cond_column, data = SARTrtFilt)
 # summary(RTlm)
 
-RTlm <- lmer(latency~new_exp_column*new_cond_column + (1|subject), data = SARTrtFilt)
+RTlm <- lmer(latency~mturk_sona*new_exp_column*new_cond_column + (1|subject), data = SARTrtFilt)
+summary(RTlm)
+
+
 RTlmConfInt <- confint(RTlm)
 RTLMERresults <- summary(RTlm)
 frequentist_model_table(RTLMERresults, RTlmConfInt,
@@ -647,7 +653,7 @@ frequentist_model_table(RTLMERresults, RTlmConfInt,
   #Rename Title, for No title replace text with NULL
   caption = "Latency by Probe Placement and Enjoyment Condition")
 
-RTlm <- lmer(latency~new_exp_column+new_cond_column + (1|subject), data = SARTrtFilt)
+RTlm <- lmer(latency~mturk_sona+new_exp_column+new_cond_column + (1|subject), data = SARTrtFilt)
 RTlmConfInt <- confint(RTlm)
 RTLMERresults <- summary(RTlm)
 frequentist_model_table(RTLMERresults, RTlmConfInt,
@@ -680,9 +686,39 @@ RTbyGroup <- ggplot(SARTrtFilt, aes(x = new_cond_column, y = latency, fill = new
   theme_minimal()
 RTbyGroup
 
+participant_avg_latencyExp1 <- SARTrtFilt %>%
+  group_by(subject, mturk_sona) %>%
+  summarize(avg_latency = mean(latency),
+            sd_latency = sd(latency))
+
+# View the new dataframe
+print(participant_avg_latencyExp1)
+
+RTbyMWExp1 <- ggplot(participant_avg_latencyExp1, aes(x = mturk_sona, y = avg_latency, fill = mturk_sona)) + 
+  geom_violin(trim = FALSE) +
+  labs(title = "Average Reaction Time of Go Trials Between MTurk and SONA System Participants", 
+       x = "Participant Pool", 
+       y = "Average Reaction Time of Go Trials",
+       fill = "Switch") +
+  scale_x_discrete(labels = c("MT" = "MTurk", "SS" = "SONA Systems")) +
+  scale_fill_manual(values = c("MT" = "blue", "SS" = "red"),
+                    labels = c("MT" = "MTurk", "SS" = "SONA Systems")) +
+  guides(fill = FALSE)  # Explicitly remove the legend
+
+RTbyMWExp1 + stat_summary(fun.data="mean_sdl", mult=1,
+                                  geom="crossbar", width=0.2, stackdir='center',
+                                  position=position_dodge(.9))
+RTbyMWExp1 + stat_summary(fun.data=mean_sdl, mult=1,
+                                  geom="pointrange", color="black", stackdir='center',
+                                  position=position_dodge(.9))
+
 
 RTbyConditionsInt <- SARTrtFilt %>%
   group_by(new_exp_column, new_cond_column) %>%
+  summarize(mean_value = mean(paid_response))
+
+RTbyConditionParticipantInt <- SARTrtFilt %>%
+  group_by(new_exp_column, mturk_sona) %>%
   summarize(mean_value = mean(paid_response))
 
 
@@ -690,7 +726,7 @@ RTbyConditionsInt <- SARTrtFilt %>%
 # ACClm <- lm(correct ~ new_exp_column*new_cond_column, data = SARTaccFilt)
 # summary(ACClm)
 
-ACClm <- lmer(correct ~ new_exp_column*new_cond_column + (1|subject), data = SARTaccFilt)
+ACClm <- lmer(correct ~ mturk_sona*new_exp_column*new_cond_column + (1|subject), data = SARTaccFilt)
 ACClmConfInt <- confint(ACClm)
 ACCLMERresults <- summary(ACClm)
 frequentist_model_table(ACCLMERresults, ACClmConfInt,
@@ -700,7 +736,7 @@ frequentist_model_table(ACCLMERresults, ACClmConfInt,
   #Rename Title, for No title replace text with NULL
   caption = "Accuracy to No Go Trials by Probe Placement and Enjoyment Condition")
 
-ACClm <- lmer(correct ~ new_exp_column+new_cond_column + (1|subject), data = SARTaccFilt)
+ACClm <- lmer(correct ~ mturk_sona+new_exp_column+new_cond_column + (1|subject), data = SARTaccFilt)
 ACClmConfInt <- confint(ACClm)
 ACCLMERresults <- summary(ACClm)
 frequentist_model_table(ACCLMERresults, ACClmConfInt,
@@ -734,6 +770,34 @@ ACCbyGroup <- ggplot(SARTaccFilt, aes(x = new_cond_column, y = correct, fill = n
   theme_minimal()
 ACCbyGroup
 
+participant_avg_accExp1 <- SARTaccFilt %>%
+  group_by(subject, mturk_sona) %>%
+  summarize(avg_correct = mean(correct),
+            sd_correct = sd(correct))
+
+# View the new dataframe
+print(participant_avg_accExp1)
+
+ACCbyMWExp1 <- ggplot(participant_avg_accExp1, aes(x = mturk_sona, y = avg_correct, fill = mturk_sona)) + 
+  geom_violin(trim = FALSE) +
+  labs(title = "Average Accuracy of No Go Trials Between MTurk and SONA System Participants", 
+       x = "Participant Pool", 
+       y = "Average Accuracy of No Go Trials",
+       fill = "Switch") +
+  scale_x_discrete(labels = c("MT" = "MTurk", "SS" = "SONA Systems")) +
+  scale_fill_manual(values = c("MT" = "blue", "SS" = "red"),
+                    labels = c("MT" = "MTurk", "SS" = "SONA Systems")) +
+  guides(fill = FALSE)  # Explicitly remove the legend
+
+ACCbyMWExp1 + stat_summary(fun.data="mean_sdl", mult=1,
+                                  geom="crossbar", width=0.2, stackdir='center',
+                                  position=position_dodge(.9))
+ACCbyMWExp1 + stat_summary(fun.data=mean_sdl, mult=1,
+                                  geom="pointrange", color="black", stackdir='center',
+                                  position=position_dodge(.9))
+
+
+
 SARTfaFilt <- SARTrtFilt
 SARTmissFILT <- SARTaccFilt
 
@@ -741,7 +805,7 @@ SARTmissFILT <- SARTaccFilt
 # FAlm <- lm(FA ~ new_exp_column*new_cond_column, data = SARTfaFilt)
 # summary(FAlm)
 
-FAlm <- lmer(FA ~ new_exp_column*new_cond_column + (1|subject), data = SARTfaFilt)
+FAlm <- lmer(FA ~ mturk_sona*new_exp_column*new_cond_column + (1|subject), data = SARTfaFilt)
 FAlmConfInt <- confint(FAlm)
 FALMERresults <- summary(FAlm)
 frequentist_model_table(FALMERresults, FAlmConfInt,
@@ -751,7 +815,7 @@ frequentist_model_table(FALMERresults, FAlmConfInt,
   #Rename Title, for No title replace text with NULL
   caption = "False Alarms by Probe Placement and Enjoyment Condition")
 
-FAlm <- lmer(FA ~ new_exp_column+new_cond_column + (1|subject), data = SARTfaFilt)
+FAlm <- lmer(FA ~ mturk_sona+new_exp_column+new_cond_column + (1|subject), data = SARTfaFilt)
 FAlmConfInt <- confint(FAlm)
 FALMERresults <- summary(FAlm)
 frequentist_model_table(FALMERresults, FAlmConfInt,
@@ -825,6 +889,84 @@ FAbySub <- ggplot(SARTfaFilt, aes(x = subject, y = FA, fill = new_cond_column)) 
   ) +
   theme_minimal()
 FAbySub
+
+participant_avg_faExp1 <- SARTfaFilt %>%
+  group_by(subject, new_exp_column) %>%
+  summarize(avg_FA = mean(FA),
+            sd_FA = sd(FA))
+
+# View the new dataframe
+print(participant_avg_faExp1)
+
+FAbyMWExp1 <- ggplot(participant_avg_faExp1, aes(x = new_exp_column, y = avg_FA, fill = new_exp_column)) + 
+  geom_violin(trim = FALSE) +
+  labs(title = "Average False Alarms of Go Trials By Probe Condition", 
+       x = "Probe Condition", 
+       y = "Average False Alarms of Go Trials",
+       fill = "Switch") +
+  scale_x_discrete(labels = c("EXP1" = "Interrupting Probe", "EXP2" = "Post Probe")) +
+  scale_fill_manual(values = c("EXP1" = "blue", "EXP2" = "red"),
+                    labels = c("EXP1" = "Interrupting Probe", "EXP2" = "Post Probe")) +
+  guides(fill = FALSE)  # Explicitly remove the legend
+
+FAbyMWExp1 + stat_summary(fun.data="mean_sdl", mult=1,
+                                  geom="crossbar", width=0.2, stackdir='center',
+                                  position=position_dodge(.9))
+FAbyMWExp1 + stat_summary(fun.data=mean_sdl, mult=1,
+                                  geom="pointrange", color="black", stackdir='center',
+                                  position=position_dodge(.9))
+
+
+participant_avg_faExp1_2 <- SARTfaFilt %>%
+  group_by(subject, new_exp_column) %>%
+  summarize(avg_FA = mean(FA),
+            sd_FA = sd(FA))
+
+# View the new dataframe
+print(participant_avg_faExp1_2)
+
+FAbyMWExp1_2 <- ggplot(participant_avg_faExp1_2, aes(x = new_exp_column, y = avg_FA, fill = new_exp_column)) + 
+  geom_violin(trim = FALSE) +
+  labs(title = "Average False Alarms of Go Trials Between MTurk and SONA System Participants", 
+       x = "Participant Pool", 
+       y = "Average False Alarms of Go Trials",
+       fill = "Switch") +
+  scale_x_discrete(labels = c("EXP1" = "Interrupting Probe", "EXP2" = "Post Probe")) +
+  scale_fill_manual(values = c("EXP1" = "blue", "EXP2" = "red"),
+                    labels = c("EXP1" = "Interrupting Probe", "EXP2" = "Post Probe"))
+
+FAbyMWExp1_2 + stat_summary(fun.data="mean_sdl", mult=1,
+                                  geom="crossbar", width=0.2, stackdir='center',
+                                  position=position_dodge(.9))
+FAbyMWExp1_2 + stat_summary(fun.data=mean_sdl, mult=1,
+                                  geom="pointrange", color="black", stackdir='center',
+                                  position=position_dodge(.9))
+
+
+participant_avg_faExp1_3 <- SARTfaFilt %>%
+  group_by(subject, new_exp_column, mturk_sona) %>%
+  summarize(avg_FA = mean(FA),
+            sd_FA = sd(FA))
+
+# View the new dataframe
+print(participant_avg_faExp1_3)
+
+FAbyMWExp1_3 <- ggplot(participant_avg_faExp1_3, aes(x = new_exp_column, y = avg_FA, fill = mturk_sona)) + 
+  geom_violin(trim = FALSE) +
+  labs(title = "Average False Alarms of Go Trials Between MTurk and SONA System Participants", 
+       x = "Participant Pool", 
+       y = "Average False Alarms of Go Trials",
+       fill = "Switch") +
+  scale_x_discrete(labels = c("MT" = "MTurk", "SS" = "SONA Systems")) +
+  scale_fill_manual(values = c("MT" = "blue", "SS" = "red"),
+                    labels = c("MT" = "MTurk", "SS" = "SONA Systems"))
+
+FAbyMWExp1_3 + stat_summary(fun.data="mean_sdl", mult=1,
+                                  geom="crossbar", width=0.2, stackdir='center',
+                                  position=position_dodge(.9))
+FAbyMWExp1_3 + stat_summary(fun.data=mean_sdl, mult=1,
+                                  geom="pointrange", color="black", stackdir='center',
+                                  position=position_dodge(.9))
 
 
 MISSbyGroup <- ggplot(SARTaccFilt, aes(x = new_cond_column, y = miss, fill = new_exp_column)) +
@@ -1013,6 +1155,52 @@ frequentist_model_table(TSlatencyLMERresults, TSlatencyConfInt,
   #Rename Title, for No title replace text with NULL
   caption = "Latency by Mind Wanderer, Congruent and Switch Trials")
 
+
+mean_sd <- function(x) c(mean = mean(x), sd = sd(x))
+
+average_rt_by_switch <- aggregate(latency ~ switch, data = Experiment3TS, FUN = mean_sd)
+
+Experiment3TS$RT_long <- ifelse(Experiment3TS$switch == 1 & Experiment3TS$latency > 2000,1,ifelse(Experiment3TS$switch == 0 & Experiment3TS$latency > 1200,1,0))
+
+RT_long <- Experiment3TS %>% filter(RT_long == 1)
+
+LongCount <- RT_long %>% group_by(subject, switch, congruence, MWer) %>% summarise(count_1 = sum(RT_long == 1, na.rm = TRUE))
+
+ggplot(LongCount, aes(x = count_1, fill = MWer)) +
+  geom_density(alpha=0.2)
+
+average_rtLong_by_switch <- aggregate(latency ~ switch+subject+MWer, data = RT_long, FUN = mean)
+
+ggplot(average_rtLong_by_switch, aes(x = latency, fill = MWer)) +
+  geom_density(alpha=0.2)
+
+#Exp3TSpost <- 
+
+participant_avg_latency <- Experiment3TS %>%
+  group_by(subject, switch) %>%
+  summarize(avg_latency = mean(latency),
+            sd_latency = sd(latency))
+
+# View the new dataframe
+print(participant_avg_latency)
+
+RTbyMWExp3TSswitch <- ggplot(participant_avg_latency, aes(x = switch, y = avg_latency, fill = switch)) + 
+  geom_violin(trim = FALSE) +
+  labs(title = "Reaction Time of Task Switching Between Switch Conditions", 
+       x = "Switch", 
+       y = "Average Task Switching Reaction Time",
+       fill = "Switch") +
+  scale_x_discrete(labels = c("0" = "Non-Switch Trial", "1" = "Switch Trial")) +
+  scale_fill_manual(values = c("0" = "blue", "1" = "red"),
+                    labels = c("0" = "Non-Switch Trial", "1" = "Switch Trial"))
+
+RTbyMWExp3TSswitch + stat_summary(fun.data="mean_sdl", mult=1,
+                                  geom="crossbar", width=0.2, ,stackdir='center',
+                                  position=position_dodge(.9))
+RTbyMWExp3TSswitch + stat_summary(fun.data=mean_sdl, mult=1,
+                                  geom="pointrange", color="black", stackdir='center',
+                                  position=position_dodge(.9))
+
 RTbyMWExp3TSswitch <- ggplot(Experiment3TS, aes(x = switch, y = latency, fill = switch)) +
   stat_summary(
     fun = "mean", 
@@ -1087,6 +1275,34 @@ frequentist_model_table(TSaccLMERresults, TSaccConfInt,
   #Rename Title, for No title replace text with NULL
   caption = "Accuracy by Mind Wanderer, Congruent and Switch Trials")
 
+average_acc_by_switch <- aggregate(correct ~ switch, data = Experiment3TS, FUN = mean_sd)
+average_acc_by_cong <- aggregate(correct ~ congruence, data = Experiment3TS, FUN = mean_sd)
+
+participant_avg_acc_switch <- Experiment3TS %>%
+  group_by(subject, switch) %>%
+  summarize(avg_correct = mean(correct))
+
+# View the new dataframe
+print(participant_avg_acc_switch)
+
+ACCbyMWExp3TSswitch <- ggplot(participant_avg_acc_switch, aes(x = switch, y = avg_correct, fill = switch)) + 
+  geom_violin(trim = FALSE) +
+  labs(title = "Accuracy of Task Switching Between Switch Conditions", 
+       x = "Switch", 
+       y = "Average Task Switching Accuracy",
+       fill = "Switch") +
+  scale_x_discrete(labels = c("0" = "Non-Switch Trial", "1" = "Switch Trial")) +
+  scale_fill_manual(values = c("0" = "blue", "1" = "red"),
+                    labels = c("0" = "Non-Switch Trial", "1" = "Switch Trial"))
+
+ACCbyMWExp3TSswitch + stat_summary(fun.data="mean_sdl", mult=1,
+                                  geom="crossbar", width=0.2, ,stackdir='center',
+                                  position=position_dodge(.9))
+ACCbyMWExp3TSswitch + stat_summary(fun.data=mean_sdl, mult=1,
+                                  geom="pointrange", color="black", stackdir='center',
+                                  position=position_dodge(.9))
+
+
 
 ACCbyMWExp3TS <- ggplot(Experiment3TS, aes(x = MWer, y = correct, fill = MWer)) +
   stat_summary(
@@ -1114,6 +1330,30 @@ ACCbyMWExp3TS <- ggplot(Experiment3TS, aes(x = MWer, y = correct, fill = MWer)) 
 
 # Print the plot
 ACCbyMWExp3TS
+
+participant_avg_acc_congruent <- Experiment3TS %>%
+  group_by(subject, congruence) %>%
+  summarize(avg_correct = mean(correct))
+
+# View the new dataframe
+print(participant_avg_acc_congruent)
+
+ACCbyMWExp3TScong <- ggplot(participant_avg_acc_congruent, aes(x = congruence, y = avg_correct, fill = congruence)) +   geom_violin(trim = FALSE) +
+  labs(title = "Accuracy of Responses Between Congruent Trials", 
+       x = "Congruence", 
+       y = "Average Congruent Trial Accuracy",
+       fill = "Congruence") +
+  scale_x_discrete(labels = c("1" = "Congruent", "2" = "Incongruent")) +
+  scale_fill_manual(values = c("1" = "blue", "2" = "red"),
+                    labels = c("1" = "Congruent", "2" = "Incongruent"))
+
+ACCbyMWExp3TScong + stat_summary(fun.data="mean_sdl", mult=1,
+                                  geom="crossbar", width=0.2, ,stackdir='center',
+                                  position=position_dodge(.9))
+ACCbyMWExp3TScong + stat_summary(fun.data=mean_sdl, mult=1,
+                                  geom="pointrange", color="black", stackdir='center',
+                                  position=position_dodge(.9))
+
 
 ACCbyMWExp3TScongruence <- ggplot(Experiment3TS, aes(x = congruence, y = correct, fill = congruence)) +
   stat_summary(
@@ -1293,6 +1533,8 @@ Exp3QualCheck <- left_join(Exp3Hitmean, Exp3FAmean, by = "subject") %>%
 Exp3RTlm <- lmer(latency~new_cond_column + (1 | subject), data=Exp3SARTrtFilt)
 summary(Exp3RTlm)
 
+average_rt_by_sart <- aggregate(latency ~ new_cond_column + MWer, data = Exp3SARTrtFilt, FUN = mean_sd)
+
 Exp3RTConfInt <- confint(Exp3RTlm)
 Exp3RTLMERresults <- summary(Exp3RTlm)
 frequentist_model_table(Exp3RTLMERresults, Exp3RTConfInt,
@@ -1304,6 +1546,32 @@ frequentist_model_table(Exp3RTLMERresults, Exp3RTConfInt,
 
 Exp3RTlm <- lmer(latency~new_cond_column * MWer + (1 | subject), data=Exp3SARTrtFilt)
 summary(Exp3RTlm)
+
+participant_avg_rt_SART <- Exp3SARTrtFilt %>%
+  group_by(subject, new_cond_column, MWer) %>%
+  summarize(avg_latency = mean(latency))
+
+# View the new dataframe
+print(participant_avg_rt_SART)
+
+ACCbyMWExp3RTSART <- ggplot(participant_avg_rt_SART, aes(x = new_cond_column, y = avg_latency, fill = MWer)) + 
+  geom_violin(trim = FALSE) +
+  labs(title = "Average Latency of Responses for Go Trials by Mind Wanderer and Enjoyment Condition", 
+       x = "Enjoyment Condition", 
+       y = "Average Latency of Go Trials",
+       fill = "Mind Wanderer") +
+  scale_x_discrete(labels = c("Enjoy" = "Enjoy", "NotEnjoy" = "Not Enjoy")) +
+  scale_fill_manual(values = c("Yes" = "blue", "No" = "red"),
+                    labels = c("Yes" = "Mind Wanderer", "No" = "Not Mind Wanderer"))
+
+ACCbyMWExp3RTSART + stat_summary(fun.data="mean_sdl", mult=1,
+                                  geom="crossbar", width=0.2, stackdir='center',
+                                  position=position_dodge(.9))
+ACCbyMWExp3RTSART + stat_summary(fun.data=mean_sdl, mult=1,
+                                  geom="pointrange", color="black", stackdir='center',
+                                  position=position_dodge(.9))
+
+
 
 Exp3RTConfInt <- confint(Exp3RTlm)
 Exp3RTLMERresults <- summary(Exp3RTlm)
@@ -1384,6 +1652,31 @@ frequentist_model_table(Exp3ACCLMERresults, Exp3ACCConfInt,
   #Rename Title, for No title replace text with NULL
   caption = "SART Accuracy by Mind Wanderer and Enjoyment Conditions")
 
+average_acc_by_sart <- aggregate(correct ~ new_cond_column + MWer, data = Exp3SARTaccFilt, FUN = mean_sd)
+
+participant_avg_acc_SART <- Exp3SARTaccFilt %>%
+  group_by(subject, new_cond_column, MWer) %>%
+  summarize(avg_accuracy = mean(correct))
+
+# View the new dataframe
+print(participant_avg_acc_SART)
+
+ACCbyMWExp3ACCSART <- ggplot(participant_avg_acc_SART, aes(x = new_cond_column, y = avg_accuracy, fill = MWer)) + 
+  geom_violin(trim = FALSE) +
+  labs(title = "Average Accuracy of Responses for No Go Trials by Mind Wanderer and Enjoyment Condition", 
+       x = "Enjoyment Condition", 
+       y = "Average Accuracy of No Go Trials",
+       fill = "Mind Wanderer") +
+  scale_x_discrete(labels = c("Enjoy" = "Enjoy", "NotEnjoy" = "Not Enjoy")) +
+  scale_fill_manual(values = c("Yes" = "blue", "No" = "red"),
+                    labels = c("Yes" = "Mind Wanderer", "No" = "Not Mind Wanderer"))
+
+ACCbyMWExp3ACCSART + stat_summary(fun.data="mean_sdl", mult=1,
+                                  geom="crossbar", width=0.2, stackdir='center',
+                                  position=position_dodge(.9))
+ACCbyMWExp3ACCSART + stat_summary(fun.data=mean_sdl, mult=1,
+                                  geom="pointrange", color="black", stackdir='center',
+                                  position=position_dodge(.9))
 
 Exp3ACCbyGroup <- ggplot(Exp3SARTaccFilt, aes(x = new_cond_column, y = correct, fill = MWer)) +
   stat_summary(
@@ -1444,6 +1737,31 @@ frequentist_model_table(Exp3FALMERresults, Exp3FAConfInt,
   #Rename Title, for No title replace text with NULL
   caption = "SART False Alarms by Mind Wanderer and Enjoyment Condition")
 
+average_fa_by_sart <- aggregate(FA ~ new_cond_column + MWer, data = Exp3SARTfaFilt, FUN = mean_sd)
+
+participant_avg_fa_SART <- Exp3SARTfaFilt %>%
+  group_by(subject, new_cond_column, MWer) %>%
+  summarize(avg_fa = mean(FA))
+
+# View the new dataframe
+print(participant_avg_fa_SART)
+
+ACCbyMWExp3FASART <- ggplot(participant_avg_fa_SART, aes(x = new_cond_column, y = avg_fa, fill = MWer)) + 
+  geom_violin(trim = FALSE) +
+  labs(title = "Average False Alarm Rate by Mind Wanderer and Enjoyment Condition", 
+       x = "Enjoyment Condition", 
+       y = "Average False Alarm Rate",
+       fill = "Mind Wanderer") +
+  scale_x_discrete(labels = c("Enjoy" = "Enjoy", "NotEnjoy" = "Not Enjoy")) +
+  scale_fill_manual(values = c("Yes" = "blue", "No" = "red"),
+                    labels = c("Yes" = "Mind Wanderer", "No" = "Not Mind Wanderer"))
+
+ACCbyMWExp3FASART + stat_summary(fun.data="mean_sdl", mult=1,
+                                  geom="crossbar", width=0.2, stackdir='center',
+                                  position=position_dodge(.9))
+ACCbyMWExp3FASART + stat_summary(fun.data=mean_sdl, mult=1,
+                                  geom="pointrange", color="black", stackdir='center',
+                                  position=position_dodge(.9))
 
 Exp3FAbyGroup <- ggplot(Exp3SARTfaFilt, aes(x = new_cond_column, y = FA, fill = MWer)) +
   stat_summary(
@@ -2067,8 +2385,8 @@ summary(lm(GTQ_response ~ MWer+new_exp_column+MR1+MR5, data = EFAanalysis))
 ggplot(EFAanalysis, aes(x = MR1, color = MWer)) +
   geom_density()
 
-ggplot(EFAanalysis, aes(x = MR3, color = Probe)) +
-  geom_density()
+# ggplot(EFAanalysis, aes(x = MR3, color = Probe)) +
+#   geom_density()
 
 Misery <- ggplot(EFAanalysis, aes(x = new_exp_column, y = MR1, fill = MWer)) +
   stat_summary(
@@ -2194,24 +2512,81 @@ summary(lm(MR1 ~ MWer*new_exp_column, data = EXP1PostAnalysis))
 confint(lm(MR1 ~ MWer*new_exp_column, data = EXP1PostAnalysis))
 summary(lm(MR5 ~ MWer*new_exp_column, data = EXP1PostAnalysis))
 
-EXP1PostAnalysis$Probe <- recode(EXP1PostAnalysis$new_exp_column, "'EXP1' = 'IP'; 'EXP2' = 'PP'; 'EXP3-SART' = 'PP'; 'EXP3-TS' = 'PP'", T, F)
-EXP1PostAnalysis$Task <- recode(EXP1PostAnalysis$new_exp_column, "'EXP1' = 'SART'; 'EXP2' = 'SART'; 'EXP3-SART' = 'SART'; 'EXP3-TS' = 'TS'", T, F)
+# EXP1PostAnalysis$Probe <- recode(EXP1PostAnalysis$new_exp_column, "'EXP1' = 'IP', 'EXP2' = 'PP', 'EXP3-SART' = 'PP', 'EXP3-TS' = 'PP'", T, F)
+
+EXP1PostAnalysis$Probe <- recode(EXP1PostAnalysis$new_exp_column, 
+                                  'EXP1' = 'IP', 
+                                  'EXP2' = 'PP', 
+                                  'EXP3-SART' = 'PP', 
+                                  'EXP3-TS' = 'PP')
+
+# EXP1PostAnalysis$Task <- recode(EXP1PostAnalysis$new_exp_column, "'EXP1' = 'SART'; 'EXP2' = 'SART'; 'EXP3-SART' = 'SART'; 'EXP3-TS' = 'TS'", T, F)
+
+EXP1PostAnalysis$Task <- recode(EXP1PostAnalysis$new_exp_column, 
+                                'EXP1' = 'SART', 
+                                'EXP2' = 'SART', 
+                                'EXP3-SART' = 'SART', 
+                                'EXP3-TS' = 'TS')
+
 table(EXP1PostAnalysis$Probe, EXP1PostAnalysis$Task)
 
-EXP1PostAnalysis$MW <- recode(EXP1PostAnalysis$MWer, "'Yes' = 'MW'; 'No' = 'NMW'", T, F)
+# EXP1PostAnalysis$MW <- recode(EXP1PostAnalysis$MWer, "'Yes' = 'MW'; 'No' = 'NMW'", T, F)
+
+EXP1PostAnalysis$MW <- recode(EXP1PostAnalysis$MWer, 
+                               'Yes' = 'MW', 
+                               'No' = 'NMW')
+
+
 
 #Use This Code
-PaidMWlmProbeEXP1 <- lm(paid_response~Probe*MW, data = EXP1PostAnalysis, contrasts = list(Probe = "contr.sum", MW = "contr.sum"))
+PaidMWlmProbeEXP1 <- lm(paid_response~mturk_sona+Probe+new_cond_column+mturk_sona:Probe+mturk_sona:new_cond_column+Probe:new_cond_column, data = EXP1PostAnalysis, contrasts = list(Probe = "contr.sum", new_cond_column = "contr.sum", mturk_sona = "contr.sum"))
+summary(PaidMWlmProbeEXP1)
+confint(PaidMWlmProbeEXP1)
+
+
+#Use This Code
+PaidMWlmProbeEXP1 <- lm(paid_response~mturk_sona+Probe+MW+mturk_sona:Probe+mturk_sona:MW+Probe:MW, data = EXP1PostAnalysis, contrasts = list(Probe = "contr.sum", MW = "contr.sum", mturk_sona = "contr.sum"))
 summary(PaidMWlmProbeEXP1)
 confint(PaidMWlmProbeEXP1)
 table(EXP1PostAnalysis$Probe, EXP1PostAnalysis$MW)
 #
 
-PaidMWlmProbeEXP1 <- lm(paid_response~new_exp_column*new_cond_column, data = EXP1PostAnalysis, contrasts = list(new_exp_column = "contr.sum", new_cond_column = "contr.sum"))
+rsq_function <- function(data, indices) {
+  d <- data[indices,] #allows boot to select sample
+  fit <- lm(paid_response~mturk_sona*Probe*MW, data=d, contrasts = list(Probe = "contr.sum", MW = "contr.sum", mturk_sona = "contr.sum"))
+  return(summary(fit)$r.square)
+}
+
+boot_model <- lm(paid_response~mturk_sona+Probe+MW+mturk_sona:Probe+mturk_sona:MW+Probe:MW, data = EXP1PostAnalysis, contrasts = list(Probe = "contr.sum", MW = "contr.sum", mturk_sona = "contr.sum"))
+reps <- Boot(boot_model, R = 1000)
+#reps <- boot(data=EXP1PostAnalysis, statistic=rsq_function, R=1000)
+summary(reps)
+
+confint(reps,  level = .95)
+plot(reps)
+
+boot.ci(reps, type="bca")
+
+PaidMWlmProbeEXP1 <- lm(paid_response~mturk_sona*new_exp_column*new_cond_column, data = EXP1PostAnalysis, contrasts = list(new_exp_column = "contr.sum", new_cond_column = "contr.sum"))
 summary(PaidMWlmProbeEXP1)
 confint(PaidMWlmProbeEXP1)
 
+Exp1Paidplot <- ggplot(EXP1PostAnalysis, aes(x = Probe, y = paid_response, fill = Probe)) + 
+  geom_violin(trim = FALSE) +
+  labs(title = "Average Amount Required to be Paid to Re-enage With the Task by \nProbe Condition", 
+       x = "Probe Condition", 
+       y = "Average Amount of Payment Required to Re-engage",
+       fill = "Probe Condition") +
+  scale_x_discrete(labels = c("IP" = "Interrupting Probe", "PP" = "Post Probe")) +
+  scale_fill_manual(values = c("IP" = "blue", "PP" = "red"),
+                    labels = c("IP" = "Interrupting Probe", "PP" = "Post Probe"))
 
+Exp1Paidplot + stat_summary(fun.data="mean_sdl", mult=1,
+                             geom="crossbar", width=0.2, stackdir='center',
+                             position=position_dodge(.9))
+Exp1Paidplot + stat_summary(fun.data=mean_sdl, mult=1,
+                             geom="pointrange", color="black", stackdir='center',
+                             position=position_dodge(.9))
 
 PaidMWlmProbeEXP1_data <- EXP1PostAnalysis %>%
   group_by(new_exp_column) %>%
@@ -2275,7 +2650,22 @@ ggplot(PaidMWlmProbeEXP1_2_data, aes(x = Probe, y = mean_value, fill = MW)) +
   scale_x_discrete(labels = c("IP" = "Interrupting Probe",
                               "PP" = "Post Probe"))
 
+Exp1Paidplot1 <- ggplot(EXP1PostAnalysis, aes(x = Probe, y = paid_response, fill = MW)) + 
+  geom_violin(trim = FALSE) +
+  labs(title = "Average Amount Required to be Paid to Re-enaged With the Task by \nProbe Condition and Mind Wanderer", 
+       x = "Probe Condition", 
+       y = "Average Amount of Payment Required to Re-engage",
+       fill = "Mind Wanderer") +
+  scale_x_discrete(labels = c("IP" = "Interrupting Probe", "PP" = "Post Probe")) +
+  scale_fill_manual(values = c("MW" = "blue", "NMW" = "red"),
+                    labels = c("MW" = "Mind Wanderer", "NMW" = "Not Mind Wanderer"))
 
+Exp1Paidplot1 + stat_summary(fun.data="mean_sdl", mult=1,
+                             geom="crossbar", width=0.2, stackdir='center',
+                             position=position_dodge(.9))
+Exp1Paidplot1 + stat_summary(fun.data=mean_sdl, mult=1,
+                             geom="pointrange", color="black", stackdir='center',
+                             position=position_dodge(.9))
 
 PaidLmresult <- EXP1PostAnalysis %>%
   group_by(new_exp_column, MWer) %>%
@@ -2292,8 +2682,21 @@ table(EFAanalysis$new_exp_column, EFAanalysis$new_cond_column)
 summary(lm(paid_response ~ new_exp_column*MWer*MR1*MR5, data = EXP1PostAnalysis))
 
 
+
+
 EXP3PostAnalysis <- EFAanalysis %>% filter(new_exp_column != "EXP1")
 EXP3PostAnalysis <- EXP3PostAnalysis %>% filter(new_exp_column != "EXP2")
+
+
+EXP3PostAnalysis$Probe <- recode(EXP3PostAnalysis$new_exp_column,'EXP3-SART' = 'PP', 'EXP3-TS' = 'PP')
+EXP3PostAnalysis$Task <- recode(EXP3PostAnalysis$new_exp_column, 'EXP3-SART' = 'SART', 'EXP3-TS' = 'TS')
+table(EXP3PostAnalysis$Probe, EXP3PostAnalysis$Task)
+
+EXP3PostAnalysis$MW <- recode(EXP3PostAnalysis$MWer, 'Yes' = 'MW', 'No' = 'NMW')
+
+
+
+
 
 EXP3PostAnalysis$MWer <- as.factor(EXP3PostAnalysis$MWer)
 EXP3PostAnalysis$new_exp_column <- as.factor(EXP3PostAnalysis$new_exp_column)
@@ -2333,6 +2736,24 @@ plot(reps)
 
 boot.ci(reps, type="bca")
 
+
+Exp3Paidplot <- ggplot(EXP3PostAnalysis, aes(x = Task, y = paid_response, fill = Task)) + 
+  geom_violin(trim = FALSE) +
+  labs(title = "Average Amount Required to be Paid to Re-enage by Experimental Task", 
+       x = "Experimental Task", 
+       y = "Average Amount of Payment Required to Re-engage",
+       fill = "Experimental Task") +
+  scale_x_discrete(labels = c("SART" = "SART", "TS" = "Task Switching")) +
+  scale_fill_manual(values = c("SART" = "blue", "TS" = "red"),
+                    labels = c("SART" = "SART", "TS" = "Task Switching"))
+
+Exp3Paidplot + stat_summary(fun.data="mean_sdl", mult=1,
+                             geom="crossbar", width=0.2, stackdir='center',
+                             position=position_dodge(.9))
+Exp3Paidplot + stat_summary(fun.data=mean_sdl, mult=1,
+                             geom="pointrange", color="black", stackdir='center',
+                             position=position_dodge(.9))
+
 PaidMWlmProbeEXP2_data <- EXP3PostAnalysis %>%
   group_by(new_exp_column) %>%
   summarise(
@@ -2343,6 +2764,7 @@ PaidMWlmProbeEXP2_data <- EXP3PostAnalysis %>%
     ciMult = qt(0.95/2 + .5, N-1),
     ci = se_value*ciMult
   )
+
 
 
 
@@ -2372,7 +2794,7 @@ PaidMWlmProbeEXP2_2_data <- EXP3PostAnalysis %>%
   )
 
 #With the legend
- ggplot(PaidMWlmProbeEXP2_2_data, aes(x = new_exp_column, y = mean_value, fill = MWer)) +
+ ggplot(PaidMWlmProbeEXP2_2_data, aes(x = Probe, y = mean_value, fill = MW)) +
    geom_bar(stat = "summary", fun = "mean", position = "dodge") +
    scale_fill_manual(values = c("blue", "red"), 
                      labels = c("No", "Yes"),
@@ -2401,17 +2823,17 @@ contrasts(EFAanalysisnorm$MWer) = contr.sum(2)
 contrasts(EFAanalysisnorm$new_exp_column) = contr.sum(4)
 contrasts(EFAanalysisnorm$new_cond_column) = contr.sum(2)
 
-#summary(lm(paid_response ~ new_exp_column*MWer*scale(MR1,scale = F)*scale(MR5,scale = F), data = EFAanalysisnorm))
-summary(lm(paid_response~new_exp_column*MWer*scale(MR1,scale = F)*scale(MR5,scale = F), data = EFAanalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum")))
-#summary(lm(paid_response ~ new_exp_column+MWer+scale(MR1,scale = F)+scale(MR5,scale = F), data = EFAanalysisnorm))
-summary(lm(paid_response~new_exp_column+MWer+scale(MR1,scale = F)+scale(MR5,scale = F), data = EFAanalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum")))
-#summary(lm(MR1 ~ new_exp_column*MWer, data = EFAanalysisnorm))
+# #summary(lm(paid_response ~ new_exp_column*MWer*scale(MR1,scale = F)*scale(MR5,scale = F), data = EFAanalysisnorm))
+# summary(lm(paid_response~new_exp_column*MWer*scale(MR1,scale = F)*scale(MR5,scale = F), data = EFAanalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum")))
+# #summary(lm(paid_response ~ new_exp_column+MWer+scale(MR1,scale = F)+scale(MR5,scale = F), data = EFAanalysisnorm))
+# summary(lm(paid_response~new_exp_column+MWer+scale(MR1,scale = F)+scale(MR5,scale = F), data = EFAanalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum")))
+# #summary(lm(MR1 ~ new_exp_column*MWer, data = EFAanalysisnorm))
 
-EFAanalysis$Probe <- recode(EFAanalysis$new_exp_column, "'EXP1' = 'IP'; 'EXP2' = 'PP'; 'EXP3-SART' = 'PP'; 'EXP3-TS' = 'PP'", T, F)
-EFAanalysis$Task <- recode(EFAanalysis$new_exp_column, "'EXP1' = 'SART'; 'EXP2' = 'SART'; 'EXP3-SART' = 'SART'; 'EXP3-TS' = 'TS'", T, F)
+EFAanalysis$Probe <- recode(EFAanalysis$new_exp_column, 'EXP1' = 'IP', 'EXP2' = 'PP', 'EXP3-SART' = 'PP', 'EXP3-TS' = 'PP')
+EFAanalysis$Task <- recode(EFAanalysis$new_exp_column, 'EXP1' = 'SART', 'EXP2' = 'SART', 'EXP3-SART' = 'SART', 'EXP3-TS' = 'TS')
 table(EFAanalysis$Probe, EFAanalysis$Task)
 
-EFAanalysis$MW <- recode(EFAanalysis$MWer, "'Yes' = 'MW'; 'No' = 'NMW'", T, F)
+EFAanalysis$MW <- recode(EFAanalysis$MWer, 'Yes' = 'MW', 'No' = 'NMW')
 
 #report this model - relevel the MWer factor so Yes is first
 Foo <- lm(MR1~Probe+Task+MW+Probe:MW, data = EFAanalysis, contrasts = list(Probe = "contr.sum", Task = "contr.sum", MW = "contr.sum"))
@@ -2438,6 +2860,10 @@ ggplot(MR1MWlmProbeEFAanalysis_data, aes(x = Probe, y = mean_value, fill = MW)) 
   labs(title = "Average Positive Affect Factor Scores by Probe Condition and Mind Wanderer", x = "Probe Condition", y = "Average Positive Affect Factor Scores", fill = "Mind Wanderer") +
   scale_x_discrete(labels = c("IP" = "Interrupting Probe",
                               "PP" = "Post Probe"))
+
+
+average_posAffect <- aggregate(MR1 ~ Probe, data = EFAanalysis, FUN = mean_sd)
+average_posAffectMW <- aggregate(MR1 ~ MW, data = EFAanalysis, FUN = mean_sd)
 
 MR1plot <- ggplot(EFAanalysis, aes(x = MW, y = MR1, fill = MW)) + 
   geom_violin(trim = FALSE) +
@@ -2493,6 +2919,8 @@ Foo <- lm(MR3~Probe+Task+MW+Probe:MW, data = EFAanalysis, contrasts = list(Probe
 confint(Foo)
 summary(Foo)
 
+average_GTQprobe <- aggregate(MR3 ~ Probe, data = EFAanalysis, FUN = mean_sd)
+
 MR3MWlmProbeEFAanalysis_data <- EFAanalysis %>%
   group_by(Probe) %>%
   summarise(
@@ -2538,6 +2966,8 @@ summary(Foo)
 Foo <- lm(MR5~Probe+Task+MW+Probe:MW, data = EFAanalysis, contrasts = list(Probe = "contr.sum", Task = "contr.sum", MW = "contr.sum"))
 summary(Foo)
 confint(Foo)
+
+average_stressMW <- aggregate(MR5 ~ MW, data = EFAanalysis, FUN = mean_sd)
 
 MR5plot <- ggplot(EFAanalysis, aes(x = MW, y = MR5, fill = MW)) + 
   geom_violin(trim = FALSE) +
@@ -2632,9 +3062,33 @@ MR5plot + stat_summary(fun.data=mean_sdl, mult=1,
 EFAanalysis$mturk_sona <- as.factor(EFAanalysis$mturk_sona)
 
 #Use this for the report
-Foo <- lm(paid_response~mturk_sona+Probe+MW+Task+Probe:MW , data = EFAanalysis, contrasts = list(mturk_sona = "contr.sum", Probe = "contr.sum", Task = "contr.sum", MW = "contr.sum"))
+Foo <- lm(paid_response~Probe+MW+Task+Probe:MW , data = EFAanalysis, contrasts = list(mturk_sona = "contr.sum", Probe = "contr.sum", Task = "contr.sum", MW = "contr.sum"))
 summary(Foo)
 confint(Foo)
+
+
+PaidRespS3 <- ggplot(EFAanalysis, aes(x = Probe, y = paid_response, fill = MW)) + 
+  geom_violin(trim = FALSE) +
+  labs(title = "Average Reported Amount to be Paid to Re-Engage With the Task by Probe Condition \nand Mind Wanderer", 
+       x = "Probe Condition", 
+       y = "Average Paid Response",
+       fill = "Mind Wanderer") +
+  scale_x_discrete(labels = c("MW" = "Mind Wanderer", "NMW" = "Not Mind Wanderer")) +
+  scale_fill_manual(values = c("MW" = "blue", "NMW" = "red"),
+                    labels = c("MW" = "Mind Wanderer", "NMW" = "Not Mind Wanderer")) 
+
+PaidRespS3 + stat_summary(fun.data="mean_sdl", mult=1,
+                                  geom="crossbar", width=0.2, stackdir='center',
+                                  position=position_dodge(.9))
+PaidRespS3 + stat_summary(fun.data=mean_sdl, mult=1,
+                                  geom="pointrange", color="black", stackdir='center',
+                                  position=position_dodge(.9))
+
+
+#Changed to exclude from report.  Are not including the mturk_sona predictor.
+# Foo <- lm(paid_response~mturk_sona+Probe+MW+Task+Probe:MW , data = EFAanalysis, contrasts = list(mturk_sona = "contr.sum", Probe = "contr.sum", Task = "contr.sum", MW = "contr.sum"))
+# summary(Foo)
+# confint(Foo)
 
 
 # Foo <- lm(paid_response~MW, data = EFAanalysis, contrasts = list(Probe = "contr.sum", Task = "contr.sum", MW = "contr.sum"))
@@ -2661,179 +3115,179 @@ confint(Foo)
 
 
 # summary(lm(MR1~new_exp_column*MWer, data = EFAanalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum")))
-confint(lm(MR1~new_exp_column*MWer, data = EFAanalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum")))
-#summary(lm(MR1 ~ new_exp_column+MWer, data = EFAanalysisnorm))
-summary(lm(MR1~new_exp_column+MWer, data = EFAanalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum")))
-#summary(lm(MR5 ~ new_exp_column*MWer, data = EFAanalysisnorm))
-
-summary(lm(MR5~new_exp_column*MWer, data = EFAanalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum")))
-
-table(EFAanalysis$Probe, EFAanalysis$MWer)
-table(EFAanalysis$Task, EFAanalysis$MWer)
+# confint(lm(MR1~new_exp_column*MWer, data = EFAanalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum")))
+# #summary(lm(MR1 ~ new_exp_column+MWer, data = EFAanalysisnorm))
+# summary(lm(MR1~new_exp_column+MWer, data = EFAanalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum")))
+# #summary(lm(MR5 ~ new_exp_column*MWer, data = EFAanalysisnorm))
+# 
+# summary(lm(MR5~new_exp_column*MWer, data = EFAanalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum")))
+# 
+# table(EFAanalysis$Probe, EFAanalysis$MWer)
+# table(EFAanalysis$Task, EFAanalysis$MWer)
 
 vif(Foo) #colinearity, multi colinearity not enough to change the effects
 
 # summary(lm(MR5~new_exp_column*MWer, data = EFAanalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum")))
-confint(lm(MR5~new_exp_column*MWer, data = EFAanalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum")))
-#summary(lm(MR5 ~ new_exp_column+MWer, data = EFAanalysisnorm))
-summary(lm(MR5~new_exp_column+MWer, data = EFAanalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum")))
-#summary(lm(paid_response ~ MWer, data = EFAanalysisnorm))
-summary(lm(paid_response~MWer, data = EFAanalysis, contrasts = list(MWer = "contr.sum")))
-confint(lm(paid_response~MWer, data = EFAanalysis, contrasts = list(MWer = "contr.sum")))
-
-summary(lm(MR1 ~ MWer*new_exp_column, data = EXP3PostAnalysis))
-summary(lm(MR5 ~ MWer*new_exp_column, data = EXP3PostAnalysis))
-summary(lm(paid_response ~ new_exp_column*MWer, data = EXP3PostAnalysis))
-summary(lm(paid_response ~ new_exp_column+MWer, data = EXP3PostAnalysis))
-summary(lm(paid_response ~ new_exp_column*MWer*scale(MR1,scale = F)*scale(MR5,scale = F), data = EXP3PostAnalysis))
-summary(lm(paid_response ~ new_exp_column+MWer+scale(MR1,scale = F)*scale(MR5,scale = F), data = EXP3PostAnalysis))
-
-summary(lm(paid_response ~ new_exp_column*MWer*MR1*MR5, data = EFAanalysis))
-
-ggplot(EFAanalysis, aes(x = as.factor(MWer), y = paid_response, group = new_exp_column, color = new_exp_column)) +
-  stat_summary(fun = "mean", geom = "line", aes(group = new_exp_column)) +
-  stat_summary(fun = "mean", geom = "point", aes(group = new_exp_column)) +
-  labs(x = "Mind Wander", y = "Paid Response", color = "Experiment")
-
-ggplot(EFAanalysis, aes(x = as.factor(new_exp_column), y = paid_response, group = new_exp_column, color = MWer)) +
-  stat_summary(fun = "mean", geom = "line", aes(group = MWer)) +
-  stat_summary(fun = "mean", geom = "point", aes(group = MWer)) +
-  labs(x = "Experiment", y = "Paid Response", color = "Mind Wander")
+# confint(lm(MR5~new_exp_column*MWer, data = EFAanalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum")))
+# #summary(lm(MR5 ~ new_exp_column+MWer, data = EFAanalysisnorm))
+# summary(lm(MR5~new_exp_column+MWer, data = EFAanalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum")))
+# #summary(lm(paid_response ~ MWer, data = EFAanalysisnorm))
+# summary(lm(paid_response~MWer, data = EFAanalysis, contrasts = list(MWer = "contr.sum")))
+# confint(lm(paid_response~MWer, data = EFAanalysis, contrasts = list(MWer = "contr.sum")))
+# 
+# summary(lm(MR1 ~ MWer*new_exp_column, data = EXP3PostAnalysis))
+# summary(lm(MR5 ~ MWer*new_exp_column, data = EXP3PostAnalysis))
+# summary(lm(paid_response ~ new_exp_column*MWer, data = EXP3PostAnalysis))
+# summary(lm(paid_response ~ new_exp_column+MWer, data = EXP3PostAnalysis))
+# summary(lm(paid_response ~ new_exp_column*MWer*scale(MR1,scale = F)*scale(MR5,scale = F), data = EXP3PostAnalysis))
+# summary(lm(paid_response ~ new_exp_column+MWer+scale(MR1,scale = F)*scale(MR5,scale = F), data = EXP3PostAnalysis))
+# 
+# summary(lm(paid_response ~ new_exp_column*MWer*MR1*MR5, data = EFAanalysis))
+# 
+# ggplot(EFAanalysis, aes(x = as.factor(MWer), y = paid_response, group = new_exp_column, color = new_exp_column)) +
+#   stat_summary(fun = "mean", geom = "line", aes(group = new_exp_column)) +
+#   stat_summary(fun = "mean", geom = "point", aes(group = new_exp_column)) +
+#   labs(x = "Mind Wander", y = "Paid Response", color = "Experiment")
+# 
+# ggplot(EFAanalysis, aes(x = as.factor(new_exp_column), y = paid_response, group = new_exp_column, color = MWer)) +
+#   stat_summary(fun = "mean", geom = "line", aes(group = MWer)) +
+#   stat_summary(fun = "mean", geom = "point", aes(group = MWer)) +
+#   labs(x = "Experiment", y = "Paid Response", color = "Mind Wander")
 
 #=================================================================================================
 #Catch Trials - I don't think we can do a proper analysis of the Catch Trials
 #=================================================================================================
-EXP1CatchAnalysis <- EXP1PostAnalysis %>% dplyr::select(c("subject", "MWer", "new_exp_column", "new_cond_column"))
-EXP1CatchAnalysis <-EXP1CatchAnalysis %>% filter(new_exp_column == "EXP1")
-EXP1CatchAnalysis <- EXP1CatchAnalysis %>% left_join(EXP1MWcatchTrialsAverages, by = "subject")
-
-EXP2CatchAnalysis <- EXP1PostAnalysis %>% dplyr::select(c("subject", "MWer", "new_exp_column", "new_cond_column", "MWcatch_response", "MWonTask_response", "MWother_response"))
-EXP2CatchAnalysis <- EXP2CatchAnalysis %>% filter(new_exp_column == "EXP2")
-
-EXP3CatchAnalysis <- EXP3PostAnalysis %>% dplyr::select(c("subject", "MWer", "new_exp_column", "new_cond_column", "MWcatch_response", "MWonTask_response", "MWother_response"))
-EXP3CatchAnalysis <- EXP3CatchAnalysis %>% filter(new_exp_column != "EXP1")
-EXP3CatchAnalysis <- EXP3CatchAnalysis %>% filter(new_exp_column != "EXP2")
-
-AllParticipantCatchTrials <- rbind(EXP1CatchAnalysis, EXP2CatchAnalysis, EXP3CatchAnalysis)
-
-#These are the people who are missing Catch Trial Responses
-NoResponsesForCatchTrials <- aggregate(. ~ new_exp_column + new_cond_column, data = AllParticipantCatchTrials[, c("new_exp_column", "new_cond_column", "MWcatch_response", "MWonTask_response", "MWother_response")], FUN = function(x) sum(is.na(x)), na.action = na.pass)
-
-TotalParticipantForEachCond <- AllParticipantCatchTrials %>% group_by(new_exp_column) %>% count(new_cond_column)
-
-NoResponsesForCatchTrials <- NoResponsesForCatchTrials %>% left_join(TotalParticipantForEachCond, by = c("new_exp_column", "new_cond_column"))
-
-
-AllParticipantCatchTrialsNAremoved <- AllParticipantCatchTrials[complete.cases(AllParticipantCatchTrials), ]
-
-MWCatchTrials_data <- AllParticipantCatchTrialsNAremoved %>%
-  group_by(new_exp_column, MWer) %>%
-  summarise(mean_value = mean(MWcatch_response),
-            sd_value = sd(MWcatch_response)) %>%
-  pivot_wider(names_from = MWer, values_from = c(mean_value, sd_value),
-              names_glue = "{.value}_{MWer}")
-
-MWCatchTrialslong_data <- AllParticipantCatchTrialsNAremoved %>%
-  group_by(new_exp_column, MWer) %>%
-  summarise(
-    N = length(MWer),
-    mean_value = mean(MWcatch_response),
-    sd_value = sd(MWcatch_response, na.rm = TRUE),
-    se_value = sd_value/sqrt(N),
-    ciMult = qt(0.95/2 + .5, N-1),
-    ci = se_value*ciMult
-  )
-
-ggplot(MWCatchTrialslong_data, aes(x = new_exp_column, y = mean_value, fill = MWer)) +
-  geom_bar(stat = "summary", fun = "mean", position = "dodge") +
-  scale_fill_manual(values = c("Yes" = "blue", "No" = "red")) +
-  geom_errorbar(aes(ymin = mean_value - ci, ymax = mean_value + ci),
-                position = position_dodge(1), width = 0.2) +
-  labs(title = "Catch Trials Response Scores", x = "Experimental Condition", y = "Average MW Catch TrialsResponse Ratings", fill = "Mind Wanderer") +
-  scale_x_discrete(labels = c("EXP1" = "Interrupting Probe",
-                              "EXP2" = "Post Probe",
-                              "EXP3-SART" = "SART",
-                              "EXP3-TS" = "Letter/Number Task Switch"))
-
-
-OnTaskCatchTrials_data <- AllParticipantCatchTrialsNAremoved %>%
-  group_by(new_exp_column, MWer) %>%
-  summarise(mean_value = mean(MWonTask_response),
-            sd_value = sd(MWonTask_response)) %>%
-  pivot_wider(names_from = MWer, values_from = c(mean_value, sd_value),
-              names_glue = "{.value}_{MWer}")
-
-OnTaskCatchTrialslong_data <- AllParticipantCatchTrialsNAremoved %>%
-  group_by(new_exp_column, MWer) %>%
-  summarise(
-    N = length(MWer),
-    mean_value = mean(MWonTask_response),
-    sd_value = sd(MWonTask_response, na.rm = TRUE),
-    se_value = sd_value/sqrt(N),
-    ciMult = qt(0.95/2 + .5, N-1),
-    ci = se_value*ciMult
-  )
-
-ggplot(OnTaskCatchTrialslong_data, aes(x = new_exp_column, y = mean_value, fill = MWer)) +
-  geom_bar(stat = "summary", fun = "mean", position = "dodge") +
-  scale_fill_manual(values = c("Yes" = "blue", "No" = "red")) +
-  geom_errorbar(aes(ymin = mean_value - ci, ymax = mean_value + ci),
-                position = position_dodge(1), width = 0.2) +
-  labs(title = "Catch Trials Response Scores", x = "Experimental Condition", y = "Average On Task Catch TrialsResponse Ratings", fill = "Mind Wanderer") +
-  scale_x_discrete(labels = c("EXP1" = "Interrupting Probe",
-                              "EXP2" = "Post Probe",
-                              "EXP3-SART" = "SART",
-                              "EXP3-TS" = "Letter/Number Task Switch"))
-
-
-OtherCatchTrials_data <- AllParticipantCatchTrialsNAremoved %>%
-  group_by(new_exp_column, MWer) %>%
-  summarise(mean_value = mean(MWother_response),
-            sd_value = sd(MWother_response)) %>%
-  pivot_wider(names_from = MWer, values_from = c(mean_value, sd_value),
-              names_glue = "{.value}_{MWer}")
-
-OtherCatchTrialslong_data <- AllParticipantCatchTrialsNAremoved %>%
-  group_by(new_exp_column, MWer) %>%
-  summarise(
-    N = length(MWer),
-    mean_value = mean(MWother_response),
-    sd_value = sd(MWother_response, na.rm = TRUE),
-    se_value = sd_value/sqrt(N),
-    ciMult = qt(0.95/2 + .5, N-1),
-    ci = se_value*ciMult
-  )
-
-ggplot(OtherCatchTrialslong_data, aes(x = new_exp_column, y = mean_value, fill = MWer)) +
-  geom_bar(stat = "summary", fun = "mean", position = "dodge") +
-  scale_fill_manual(values = c("Yes" = "blue", "No" = "red")) +
-  geom_errorbar(aes(ymin = mean_value - ci, ymax = mean_value + ci),
-                position = position_dodge(1), width = 0.2) +
-  labs(title = "Catch Trials Response Scores", x = "Experimental Condition", y = "Average Other Catch TrialsResponse Ratings", fill = "Mind Wanderer") +
-  scale_x_discrete(labels = c("EXP1" = "Interrupting Probe",
-                              "EXP2" = "Post Probe",
-                              "EXP3-SART" = "SART",
-                              "EXP3-TS" = "Letter/Number Task Switch"))
-
-
-summary(lm(MWcatch_response ~ new_exp_column*new_cond_column, data = AllParticipantCatchTrialsNAremoved))
-summary(lm(MWcatch_response ~ new_exp_column, data = AllParticipantCatchTrialsNAremoved))
-summary(lm(MWcatch_response ~ new_cond_column, data = AllParticipantCatchTrialsNAremoved))
-summary(lm(MWonTask_response ~ new_exp_column*new_cond_column, data = AllParticipantCatchTrialsNAremoved))
-summary(lm(MWonTask_response ~ new_exp_column, data = AllParticipantCatchTrialsNAremoved))
-summary(lm(MWonTask_response ~ new_cond_column, data = AllParticipantCatchTrialsNAremoved))
-summary(lm(MWother_response ~ new_exp_column*new_cond_column, data = AllParticipantCatchTrialsNAremoved))
-summary(lm(MWother_response ~ new_exp_column, data = AllParticipantCatchTrialsNAremoved))
-summary(lm(MWother_response ~ new_cond_column, data = AllParticipantCatchTrialsNAremoved))
-
-
-EFAanalysisnorm %>% group_by(new_exp_column) %>% count(mturk_sona)
-
-tapply(EFAanalysisnorm$paid_response, EFAanalysisnorm$mturk_sona, mean)
-
-aggregate(EFAanalysisnorm$paid_response, 
-                                   by = list(EFAanalysisnorm$new_exp_column, EFAanalysisnorm$mturk_sona), 
-                                   FUN = mean)
+# EXP1CatchAnalysis <- EXP1PostAnalysis %>% dplyr::select(c("subject", "MWer", "new_exp_column", "new_cond_column"))
+# EXP1CatchAnalysis <-EXP1CatchAnalysis %>% filter(new_exp_column == "EXP1")
+# EXP1CatchAnalysis <- EXP1CatchAnalysis %>% left_join(EXP1MWcatchTrialsAverages, by = "subject")
+# 
+# EXP2CatchAnalysis <- EXP1PostAnalysis %>% dplyr::select(c("subject", "MWer", "new_exp_column", "new_cond_column", "MWcatch_response", "MWonTask_response", "MWother_response"))
+# EXP2CatchAnalysis <- EXP2CatchAnalysis %>% filter(new_exp_column == "EXP2")
+# 
+# EXP3CatchAnalysis <- EXP3PostAnalysis %>% dplyr::select(c("subject", "MWer", "new_exp_column", "new_cond_column", "MWcatch_response", "MWonTask_response", "MWother_response"))
+# EXP3CatchAnalysis <- EXP3CatchAnalysis %>% filter(new_exp_column != "EXP1")
+# EXP3CatchAnalysis <- EXP3CatchAnalysis %>% filter(new_exp_column != "EXP2")
+# 
+# AllParticipantCatchTrials <- rbind(EXP1CatchAnalysis, EXP2CatchAnalysis, EXP3CatchAnalysis)
+# 
+# #These are the people who are missing Catch Trial Responses
+# NoResponsesForCatchTrials <- aggregate(. ~ new_exp_column + new_cond_column, data = AllParticipantCatchTrials[, c("new_exp_column", "new_cond_column", "MWcatch_response", "MWonTask_response", "MWother_response")], FUN = function(x) sum(is.na(x)), na.action = na.pass)
+# 
+# TotalParticipantForEachCond <- AllParticipantCatchTrials %>% group_by(new_exp_column) %>% count(new_cond_column)
+# 
+# NoResponsesForCatchTrials <- NoResponsesForCatchTrials %>% left_join(TotalParticipantForEachCond, by = c("new_exp_column", "new_cond_column"))
+# 
+# 
+# AllParticipantCatchTrialsNAremoved <- AllParticipantCatchTrials[complete.cases(AllParticipantCatchTrials), ]
+# 
+# MWCatchTrials_data <- AllParticipantCatchTrialsNAremoved %>%
+#   group_by(new_exp_column, MWer) %>%
+#   summarise(mean_value = mean(MWcatch_response),
+#             sd_value = sd(MWcatch_response)) %>%
+#   pivot_wider(names_from = MWer, values_from = c(mean_value, sd_value),
+#               names_glue = "{.value}_{MWer}")
+# 
+# MWCatchTrialslong_data <- AllParticipantCatchTrialsNAremoved %>%
+#   group_by(new_exp_column, MWer) %>%
+#   summarise(
+#     N = length(MWer),
+#     mean_value = mean(MWcatch_response),
+#     sd_value = sd(MWcatch_response, na.rm = TRUE),
+#     se_value = sd_value/sqrt(N),
+#     ciMult = qt(0.95/2 + .5, N-1),
+#     ci = se_value*ciMult
+#   )
+# 
+# ggplot(MWCatchTrialslong_data, aes(x = new_exp_column, y = mean_value, fill = MWer)) +
+#   geom_bar(stat = "summary", fun = "mean", position = "dodge") +
+#   scale_fill_manual(values = c("Yes" = "blue", "No" = "red")) +
+#   geom_errorbar(aes(ymin = mean_value - ci, ymax = mean_value + ci),
+#                 position = position_dodge(1), width = 0.2) +
+#   labs(title = "Catch Trials Response Scores", x = "Experimental Condition", y = "Average MW Catch TrialsResponse Ratings", fill = "Mind Wanderer") +
+#   scale_x_discrete(labels = c("EXP1" = "Interrupting Probe",
+#                               "EXP2" = "Post Probe",
+#                               "EXP3-SART" = "SART",
+#                               "EXP3-TS" = "Letter/Number Task Switch"))
+# 
+# 
+# OnTaskCatchTrials_data <- AllParticipantCatchTrialsNAremoved %>%
+#   group_by(new_exp_column, MWer) %>%
+#   summarise(mean_value = mean(MWonTask_response),
+#             sd_value = sd(MWonTask_response)) %>%
+#   pivot_wider(names_from = MWer, values_from = c(mean_value, sd_value),
+#               names_glue = "{.value}_{MWer}")
+# 
+# OnTaskCatchTrialslong_data <- AllParticipantCatchTrialsNAremoved %>%
+#   group_by(new_exp_column, MWer) %>%
+#   summarise(
+#     N = length(MWer),
+#     mean_value = mean(MWonTask_response),
+#     sd_value = sd(MWonTask_response, na.rm = TRUE),
+#     se_value = sd_value/sqrt(N),
+#     ciMult = qt(0.95/2 + .5, N-1),
+#     ci = se_value*ciMult
+#   )
+# 
+# ggplot(OnTaskCatchTrialslong_data, aes(x = new_exp_column, y = mean_value, fill = MWer)) +
+#   geom_bar(stat = "summary", fun = "mean", position = "dodge") +
+#   scale_fill_manual(values = c("Yes" = "blue", "No" = "red")) +
+#   geom_errorbar(aes(ymin = mean_value - ci, ymax = mean_value + ci),
+#                 position = position_dodge(1), width = 0.2) +
+#   labs(title = "Catch Trials Response Scores", x = "Experimental Condition", y = "Average On Task Catch TrialsResponse Ratings", fill = "Mind Wanderer") +
+#   scale_x_discrete(labels = c("EXP1" = "Interrupting Probe",
+#                               "EXP2" = "Post Probe",
+#                               "EXP3-SART" = "SART",
+#                               "EXP3-TS" = "Letter/Number Task Switch"))
+# 
+# 
+# OtherCatchTrials_data <- AllParticipantCatchTrialsNAremoved %>%
+#   group_by(new_exp_column, MWer) %>%
+#   summarise(mean_value = mean(MWother_response),
+#             sd_value = sd(MWother_response)) %>%
+#   pivot_wider(names_from = MWer, values_from = c(mean_value, sd_value),
+#               names_glue = "{.value}_{MWer}")
+# 
+# OtherCatchTrialslong_data <- AllParticipantCatchTrialsNAremoved %>%
+#   group_by(new_exp_column, MWer) %>%
+#   summarise(
+#     N = length(MWer),
+#     mean_value = mean(MWother_response),
+#     sd_value = sd(MWother_response, na.rm = TRUE),
+#     se_value = sd_value/sqrt(N),
+#     ciMult = qt(0.95/2 + .5, N-1),
+#     ci = se_value*ciMult
+#   )
+# 
+# ggplot(OtherCatchTrialslong_data, aes(x = new_exp_column, y = mean_value, fill = MWer)) +
+#   geom_bar(stat = "summary", fun = "mean", position = "dodge") +
+#   scale_fill_manual(values = c("Yes" = "blue", "No" = "red")) +
+#   geom_errorbar(aes(ymin = mean_value - ci, ymax = mean_value + ci),
+#                 position = position_dodge(1), width = 0.2) +
+#   labs(title = "Catch Trials Response Scores", x = "Experimental Condition", y = "Average Other Catch TrialsResponse Ratings", fill = "Mind Wanderer") +
+#   scale_x_discrete(labels = c("EXP1" = "Interrupting Probe",
+#                               "EXP2" = "Post Probe",
+#                               "EXP3-SART" = "SART",
+#                               "EXP3-TS" = "Letter/Number Task Switch"))
+# 
+# 
+# summary(lm(MWcatch_response ~ new_exp_column*new_cond_column, data = AllParticipantCatchTrialsNAremoved))
+# summary(lm(MWcatch_response ~ new_exp_column, data = AllParticipantCatchTrialsNAremoved))
+# summary(lm(MWcatch_response ~ new_cond_column, data = AllParticipantCatchTrialsNAremoved))
+# summary(lm(MWonTask_response ~ new_exp_column*new_cond_column, data = AllParticipantCatchTrialsNAremoved))
+# summary(lm(MWonTask_response ~ new_exp_column, data = AllParticipantCatchTrialsNAremoved))
+# summary(lm(MWonTask_response ~ new_cond_column, data = AllParticipantCatchTrialsNAremoved))
+# summary(lm(MWother_response ~ new_exp_column*new_cond_column, data = AllParticipantCatchTrialsNAremoved))
+# summary(lm(MWother_response ~ new_exp_column, data = AllParticipantCatchTrialsNAremoved))
+# summary(lm(MWother_response ~ new_cond_column, data = AllParticipantCatchTrialsNAremoved))
+# 
+# 
+# EFAanalysisnorm %>% group_by(new_exp_column) %>% count(mturk_sona)
+# 
+# tapply(EFAanalysisnorm$paid_response, EFAanalysisnorm$mturk_sona, mean)
+# 
+# aggregate(EFAanalysisnorm$paid_response, 
+#                                    by = list(EFAanalysisnorm$new_exp_column, EFAanalysisnorm$mturk_sona), 
+#                                    FUN = mean)
 
 ```
 
