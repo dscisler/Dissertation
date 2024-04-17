@@ -381,9 +381,18 @@ library(gridExtra)
 library(lme4)
 library(lmerTest)
 source('https://github.com/pablobernabeu/language-sensorimotor-simulation-PhD-thesis/raw/main/R_functions/frequentist_model_table.R')
+library(MuMIn)
 
 #Separate Out EXP1 and EXP2 into different dataframes
 EXP1df <- df %>% filter(grepl("^EXP1", new_exp_column, ignore.case = TRUE))
+EXP1df$trialNum <- as.factor(EXP1df$trialnum)
+
+# Probelm <- lmer(response~time.x + (1|subject), data = EXP1df)
+# summary(RTlm)
+# RTlmPseudoR2 <- r.squaredGLMM(RTlm)
+# 
+# RTlmConfInt <- confint(RTlm)
+# RTLMERresults <- summary(RTlm)
 
 EXP1MWcatch <- df %>% filter(grepl("MWcatch", trialcode, ignore.case = TRUE))
 EXP1MWcatch$response <- as.numeric(EXP1MWcatch$response)
@@ -551,7 +560,7 @@ MWerModel <- glm(formula = MWer ~ mturk_sona + new_exp_column + new_cond_column 
     data = exp1exp2Analysis2)
 summary(MWerModel)
 exp(MWerModel$coefficients)
-exp(Confint(MWerModel))
+exp(confint(MWerModel))
 
 #cor.test(exp1exp2Analysis2$MWer, exp1exp2Analysis2$new_exp_column)
 
@@ -636,13 +645,15 @@ QualCheckExp2 <- QualCheck %>% filter(new_exp_column.x == "EXP2")
 QualCheck2_2 <- SARTexp1exp2 %>% filter(subject == "197955474")
 #Nothing is overtly odd about their data.  My only concern is that the datafile was recorded at 2:30 am.  They could be fatigued.
 
+
+
 ###Analysis of RT for SART
 # RTlm <- lm(latency~new_exp_column*new_cond_column, data = SARTrtFilt)
 # summary(RTlm)
 
 RTlm <- lmer(latency~mturk_sona*new_exp_column*new_cond_column + (1|subject), data = SARTrtFilt)
 summary(RTlm)
-
+RTlmPseudoR2 <- r.squaredGLMM(RTlm)
 
 RTlmConfInt <- confint(RTlm)
 RTLMERresults <- summary(RTlm)
@@ -694,6 +705,7 @@ participant_avg_latencyExp1 <- SARTrtFilt %>%
 # View the new dataframe
 print(participant_avg_latencyExp1)
 
+#plot for report
 RTbyMWExp1 <- ggplot(participant_avg_latencyExp1, aes(x = mturk_sona, y = avg_latency, fill = mturk_sona)) + 
   geom_violin(trim = FALSE) +
   labs(title = "Average Reaction Time of Go Trials Between MTurk and SONA System Participants", 
@@ -703,14 +715,50 @@ RTbyMWExp1 <- ggplot(participant_avg_latencyExp1, aes(x = mturk_sona, y = avg_la
   scale_x_discrete(labels = c("MT" = "MTurk", "SS" = "SONA Systems")) +
   scale_fill_manual(values = c("MT" = "blue", "SS" = "red"),
                     labels = c("MT" = "MTurk", "SS" = "SONA Systems")) +
-  guides(fill = FALSE)  # Explicitly remove the legend
+  guides(fill = FALSE)  + coord_flip()  # Explicitly remove the legend
 
 RTbyMWExp1 + stat_summary(fun.data="mean_sdl", mult=1,
                                   geom="crossbar", width=0.2, stackdir='center',
                                   position=position_dodge(.9))
 RTbyMWExp1 + stat_summary(fun.data=mean_sdl, mult=1,
                                   geom="pointrange", color="black", stackdir='center',
+                                  position=position_dodge(.9)) 
+
+#Plot for presentation
+participant_avg_latencyExp1_pres <- SARTrtFilt %>%
+  group_by(subject, mturk_sona, new_exp_column) %>%
+  summarize(avg_latency = mean(latency),
+            sd_latency = sd(latency))
+
+study1RT_sample_sizes <- SARTrtFilt %>% 
+  group_by(mturk_sona, new_exp_column) %>% 
+  summarise(sample_size = n_distinct(subject), 
+            max_latency = max(latency, na.rm = TRUE))
+
+
+RTbyMWExp1 <- ggplot(participant_avg_latencyExp1_pres, aes(x = mturk_sona, y = avg_latency, fill = new_exp_column)) + 
+  geom_violin(trim = FALSE) +
+  labs(title = "Average Reaction Time of Go Trials Between MTurk and SONA System Participants \nby Probe Condition", 
+       x = "Participant Pool", 
+       y = "Average Reaction Time of Go Trials",
+       fill = "Probe Condition") +
+  scale_x_discrete(labels = c("MT" = "MTurk", "SS" = "SONA Systems")) +
+  scale_fill_manual(values = c("EXP1" = "blue", "EXP2" = "red"),
+                    labels = c("EXP1" = "Interrupting Probe", "EXP2" = "Post Probe")) + coord_flip()
+
+RTbyMWExp1 + stat_summary(fun.data="mean_sdl", mult=1,
+                                  geom="crossbar", width=0.2, stackdir='center',
                                   position=position_dodge(.9))
+RTbyMWExp1 + stat_summary(fun.data=mean_sdl, mult=1,
+                                  geom="pointrange", color="black", stackdir='center',
+                                  position=position_dodge(.9)) + geom_text(data = study1RT_sample_sizes, 
+            aes(label = paste("n =", sample_size), 
+                y = 900 + 0.5, 
+                x = mturk_sona,
+                color = new_exp_column),  # Use Probe for the interaction and color
+            position = position_dodge(width = 0.9),  
+            hjust = 0, vjust = -0.5, size = 5, color = "black", fontface = "bold", show.legend = FALSE)
+
 
 
 RTbyConditionsInt <- SARTrtFilt %>%
@@ -729,6 +777,8 @@ RTbyConditionParticipantInt <- SARTrtFilt %>%
 ACClm <- lmer(correct ~ mturk_sona*new_exp_column*new_cond_column + (1|subject), data = SARTaccFilt)
 ACClmConfInt <- confint(ACClm)
 ACCLMERresults <- summary(ACClm)
+ACClmPseudoR2 <- r.squaredGLMM(ACClm)
+
 frequentist_model_table(ACCLMERresults, ACClmConfInt,
  # Replace colons in the names of interactions with times symbols
   interaction_symbol_x = TRUE, 
@@ -787,7 +837,7 @@ ACCbyMWExp1 <- ggplot(participant_avg_accExp1, aes(x = mturk_sona, y = avg_corre
   scale_x_discrete(labels = c("MT" = "MTurk", "SS" = "SONA Systems")) +
   scale_fill_manual(values = c("MT" = "blue", "SS" = "red"),
                     labels = c("MT" = "MTurk", "SS" = "SONA Systems")) +
-  guides(fill = FALSE)  # Explicitly remove the legend
+  guides(fill = FALSE)  + coord_flip()  # Explicitly remove the legend
 
 ACCbyMWExp1 + stat_summary(fun.data="mean_sdl", mult=1,
                                   geom="crossbar", width=0.2, stackdir='center',
@@ -796,6 +846,40 @@ ACCbyMWExp1 + stat_summary(fun.data=mean_sdl, mult=1,
                                   geom="pointrange", color="black", stackdir='center',
                                   position=position_dodge(.9))
 
+
+#For presentation
+participant_avg_accExp1_pres <- SARTaccFilt %>%
+  group_by(subject, mturk_sona, new_exp_column) %>%
+  summarize(avg_correct = mean(correct),
+            sd_correct = sd(correct))
+
+study1ACC_sample_sizes <- SARTaccFilt %>% 
+  group_by(mturk_sona, new_exp_column) %>% 
+  summarise(sample_size = n_distinct(subject), 
+            max_acc = max(correct, na.rm = TRUE))
+
+ACCbyMWExp1 <- ggplot(participant_avg_accExp1_pres, aes(x = mturk_sona, y = avg_correct, fill = new_exp_column)) + 
+  geom_violin(trim = FALSE) +
+  labs(title = "Average Accuracy of No Go Trials Between MTurk and SONA System Participants \nby Probe Condition", 
+       x = "Participant Pool", 
+       y = "Average Accuracy of No Go Trials",
+       fill = "Probe Condition") +
+  scale_x_discrete(labels = c("MT" = "MTurk", "SS" = "SONA Systems")) +
+  scale_fill_manual(values = c("EXP1" = "blue", "EXP2" = "red"),
+                    labels = c("EXP1" = "Interrupting Probe", "EXP2" = "Post Probe")) + coord_flip()  # Explicitly remove the legend
+
+ACCbyMWExp1 + stat_summary(fun.data="mean_sdl", mult=1,
+                                  geom="crossbar", width=0.2, stackdir='center',
+                                  position=position_dodge(.9))
+ACCbyMWExp1 + stat_summary(fun.data=mean_sdl, mult=1,
+                                  geom="pointrange", color="black", stackdir='center',
+                                  position=position_dodge(.9)) + geom_text(data = study1ACC_sample_sizes, 
+            aes(label = paste("n =", sample_size), 
+                y = 0.8 + 0.25, 
+                x = mturk_sona,
+                color = new_exp_column),  # Use Probe for the interaction and color
+            position = position_dodge(width = 0.9),  
+            hjust = 0, vjust = -0.5, size = 5, color = "black", fontface = "bold", show.legend = FALSE)
 
 
 SARTfaFilt <- SARTrtFilt
@@ -808,6 +892,8 @@ SARTmissFILT <- SARTaccFilt
 FAlm <- lmer(FA ~ mturk_sona*new_exp_column*new_cond_column + (1|subject), data = SARTfaFilt)
 FAlmConfInt <- confint(FAlm)
 FALMERresults <- summary(FAlm)
+FAlmPseudoR2 <- r.squaredGLMM(FAlm)
+
 frequentist_model_table(FALMERresults, FAlmConfInt,
  # Replace colons in the names of interactions with times symbols
   interaction_symbol_x = TRUE, 
@@ -907,7 +993,7 @@ FAbyMWExp1 <- ggplot(participant_avg_faExp1, aes(x = new_exp_column, y = avg_FA,
   scale_x_discrete(labels = c("EXP1" = "Interrupting Probe", "EXP2" = "Post Probe")) +
   scale_fill_manual(values = c("EXP1" = "blue", "EXP2" = "red"),
                     labels = c("EXP1" = "Interrupting Probe", "EXP2" = "Post Probe")) +
-  guides(fill = FALSE)  # Explicitly remove the legend
+  guides(fill = FALSE) + coord_flip()  # Explicitly remove the legend
 
 FAbyMWExp1 + stat_summary(fun.data="mean_sdl", mult=1,
                                   geom="crossbar", width=0.2, stackdir='center',
@@ -917,30 +1003,49 @@ FAbyMWExp1 + stat_summary(fun.data=mean_sdl, mult=1,
                                   position=position_dodge(.9))
 
 
-participant_avg_faExp1_2 <- SARTfaFilt %>%
-  group_by(subject, new_exp_column) %>%
+#For presentation
+participant_avg_accExp1_pres <- SARTaccFilt %>%
+  group_by(subject, mturk_sona, new_exp_column) %>%
+  summarize(avg_correct = mean(correct),
+            sd_correct = sd(correct))
+
+
+
+participant_avg_faExp1_pres <- SARTfaFilt %>%
+  group_by(subject, new_exp_column, mturk_sona) %>%
   summarize(avg_FA = mean(FA),
             sd_FA = sd(FA))
 
-# View the new dataframe
-print(participant_avg_faExp1_2)
+study1FA_sample_sizes <- SARTaccFilt %>% 
+  group_by(mturk_sona, new_exp_column) %>% 
+  summarise(sample_size = n_distinct(subject), 
+            max_FA = max(FA, na.rm = TRUE))
 
-FAbyMWExp1_2 <- ggplot(participant_avg_faExp1_2, aes(x = new_exp_column, y = avg_FA, fill = new_exp_column)) + 
+# View the new dataframe
+print(participant_avg_faExp1_pres)
+
+FAbyMWExp1_2 <- ggplot(participant_avg_faExp1_pres, aes(x = new_exp_column, y = avg_FA, fill = mturk_sona)) + 
   geom_violin(trim = FALSE) +
-  labs(title = "Average False Alarms of Go Trials Between MTurk and SONA System Participants", 
-       x = "Participant Pool", 
+  labs(title = "Average False Alarms of Go Trials between Probe Condition By \nMTurk and SONA System Participants", 
+       x = "Probe Condition", 
        y = "Average False Alarms of Go Trials",
-       fill = "Switch") +
+       fill = "Participant Pool") +
   scale_x_discrete(labels = c("EXP1" = "Interrupting Probe", "EXP2" = "Post Probe")) +
-  scale_fill_manual(values = c("EXP1" = "blue", "EXP2" = "red"),
-                    labels = c("EXP1" = "Interrupting Probe", "EXP2" = "Post Probe"))
+  scale_fill_manual(values = c("MT" = "blue", "SS" = "red"),
+                    labels = c("MT" = "MTurk", "SS" = "SONA Systems")) + coord_flip()
 
 FAbyMWExp1_2 + stat_summary(fun.data="mean_sdl", mult=1,
                                   geom="crossbar", width=0.2, stackdir='center',
                                   position=position_dodge(.9))
 FAbyMWExp1_2 + stat_summary(fun.data=mean_sdl, mult=1,
                                   geom="pointrange", color="black", stackdir='center',
-                                  position=position_dodge(.9))
+                                  position=position_dodge(.9)) + geom_text(data = study1FA_sample_sizes, 
+            aes(label = paste("n =", sample_size), 
+                y = 0.2 + 0.25, 
+                x = new_exp_column,
+                color = mturk_sona),  # Use Probe for the interaction and color
+            position = position_dodge(width = 0.9),  
+            hjust = 0, vjust = -0.5, size = 5, color = "black", fontface = "bold", show.legend = FALSE)
 
 
 participant_avg_faExp1_3 <- SARTfaFilt %>%
@@ -1192,14 +1297,49 @@ RTbyMWExp3TSswitch <- ggplot(participant_avg_latency, aes(x = switch, y = avg_la
        fill = "Switch") +
   scale_x_discrete(labels = c("0" = "Non-Switch Trial", "1" = "Switch Trial")) +
   scale_fill_manual(values = c("0" = "blue", "1" = "red"),
-                    labels = c("0" = "Non-Switch Trial", "1" = "Switch Trial"))
+                    labels = c("0" = "Non-Switch Trial", "1" = "Switch Trial")) + coord_flip()
 
 RTbyMWExp3TSswitch + stat_summary(fun.data="mean_sdl", mult=1,
-                                  geom="crossbar", width=0.2, ,stackdir='center',
+                                  geom="crossbar", width=0.2, stackdir='center',
                                   position=position_dodge(.9))
 RTbyMWExp3TSswitch + stat_summary(fun.data=mean_sdl, mult=1,
                                   geom="pointrange", color="black", stackdir='center',
                                   position=position_dodge(.9))
+
+
+#For Presentation
+study2switch_sample_sizes <- Experiment3TS %>% 
+  group_by(switch, MWer) %>% 
+  summarise(sample_size = n_distinct(subject), 
+            max_latency = max(latency, na.rm = TRUE))
+
+participant_avg_latency <- Experiment3TS %>%
+  group_by(subject, switch, MWer) %>%
+  summarize(avg_latency = mean(latency),
+            sd_latency = sd(latency))
+
+RTbyMWExp3TSswitch <- ggplot(participant_avg_latency, aes(x = switch, y = avg_latency, fill = MWer)) + 
+  geom_violin(trim = FALSE) +
+  labs(title = "Reaction Time of Task Switching Between Switch Conditions and Mind Wanderer Grouping", 
+       x = "Switch", 
+       y = "Average Task Switching Reaction Time",
+       fill = "Mind Wanderer") +
+  scale_x_discrete(labels = c("0" = "Non-Switch Trial", "1" = "Switch Trial")) +
+  scale_fill_manual(values = c("Yes" = "blue", "No" = "red"),
+                    labels = c("Yes" = "Mind Wanderer", "No" = "Not Mind Wanderer")) + coord_flip()
+
+RTbyMWExp3TSswitch + stat_summary(fun.data="mean_sdl", mult=1,
+                                  geom="crossbar", width=0.2, stackdir='center',
+                                  position=position_dodge(.9))
+RTbyMWExp3TSswitch + stat_summary(fun.data=mean_sdl, mult=1,
+                                  geom="pointrange", color="black", stackdir='center',
+                                  position=position_dodge(.9))+ geom_text(data = study2switch_sample_sizes, 
+            aes(label = paste("n =", sample_size), 
+                y = 4000 + 0.5, 
+                x = switch,
+                color = MWer),  # Use Probe for the interaction and color
+            position = position_dodge(width = 0.9),  
+            hjust = 0, vjust = -0.5, size = 5, color = "black", fontface = "bold", show.legend = FALSE)
 
 RTbyMWExp3TSswitch <- ggplot(Experiment3TS, aes(x = switch, y = latency, fill = switch)) +
   stat_summary(
@@ -1296,7 +1436,7 @@ ACCbyMWExp3TSswitch <- ggplot(participant_avg_acc_switch, aes(x = switch, y = av
                     labels = c("0" = "Non-Switch Trial", "1" = "Switch Trial"))
 
 ACCbyMWExp3TSswitch + stat_summary(fun.data="mean_sdl", mult=1,
-                                  geom="crossbar", width=0.2, ,stackdir='center',
+                                  geom="crossbar", width=0.2, stackdir='center',
                                   position=position_dodge(.9))
 ACCbyMWExp3TSswitch + stat_summary(fun.data=mean_sdl, mult=1,
                                   geom="pointrange", color="black", stackdir='center',
@@ -1348,11 +1488,86 @@ ACCbyMWExp3TScong <- ggplot(participant_avg_acc_congruent, aes(x = congruence, y
                     labels = c("1" = "Congruent", "2" = "Incongruent"))
 
 ACCbyMWExp3TScong + stat_summary(fun.data="mean_sdl", mult=1,
-                                  geom="crossbar", width=0.2, ,stackdir='center',
+                                  geom="crossbar", width=0.2, stackdir='center',
                                   position=position_dodge(.9))
 ACCbyMWExp3TScong + stat_summary(fun.data=mean_sdl, mult=1,
                                   geom="pointrange", color="black", stackdir='center',
                                   position=position_dodge(.9))
+
+
+
+#For Presentation
+study2switchACC_sample_sizes <- Experiment3TS %>% 
+  group_by(switch, MWer) %>% 
+  summarise(sample_size = n_distinct(subject), 
+            max_acc = max(correct, na.rm = TRUE))
+
+participant_avg_acc_switch <- Experiment3TS %>%
+  group_by(subject, switch, MWer) %>%
+  summarize(avg_correct = mean(correct))
+
+# View the new dataframe
+print(participant_avg_acc_switch)
+
+ACCbyMWExp3TSswitch <- ggplot(participant_avg_acc_switch, aes(x = switch, y = avg_correct, fill = MWer)) + 
+  geom_violin(trim = FALSE) +
+  labs(title = "Accuracy of Task Switching Between Switch Conditions by Mind Wanderer Grouping", 
+       x = "Switch", 
+       y = "Average Task Switching Accuracy",
+       fill = "Mind Wanderer") +
+  scale_x_discrete(labels = c("0" = "Non-Switch Trial", "1" = "Switch Trial")) +
+  scale_fill_manual(values = c("Yes" = "blue", "No" = "red"),
+                    labels = c("Yes" = "Mind Wanderer", "No" = "Not Mind Wanderer")) + coord_flip()
+
+ACCbyMWExp3TSswitch + stat_summary(fun.data="mean_sdl", mult=1,
+                                  geom="crossbar", width=0.2, stackdir='center',
+                                  position=position_dodge(.9))
+ACCbyMWExp3TSswitch + stat_summary(fun.data=mean_sdl, mult=1,
+                                  geom="pointrange", color="black", stackdir='center',
+                                  position=position_dodge(.9)) + geom_text(data = study2switchACC_sample_sizes, 
+            aes(label = paste("n =", sample_size), 
+                y = 1 + 0.025, 
+                x = switch,
+                color = MWer),  # Use Probe for the interaction and color
+            position = position_dodge(width = 0.9),  
+            hjust = 0, vjust = -0.5, size = 5, color = "black", fontface = "bold", show.legend = FALSE)
+
+
+#Congruence
+study2congruenceACC_sample_sizes <- Experiment3TS %>% 
+  group_by(congruence, MWer) %>% 
+  summarise(sample_size = n_distinct(subject), 
+            max_acc = max(correct, na.rm = TRUE))
+
+participant_avg_acc_congruent <- Experiment3TS %>%
+  group_by(subject, congruence, MWer) %>%
+  summarize(avg_correct = mean(correct))
+
+# View the new dataframe
+print(participant_avg_acc_congruent)
+
+ACCbyMWExp3TScong <- ggplot(participant_avg_acc_congruent, aes(x = congruence, y = avg_correct, fill = MWer)) +   geom_violin(trim = FALSE) +
+  labs(title = "Accuracy of Responses Between Congruent Trials by Mind Wanderer Grouping", 
+       x = "Congruence", 
+       y = "Average Congruent Trial Accuracy",
+       fill = "Mind Wanderer") +
+  scale_x_discrete(labels = c("1" = "Congruent", "2" = "Incongruent")) +
+  scale_fill_manual(values = c("Yes" = "blue", "No" = "red"),
+                    labels = c("Yes" = "Mind Wanderer", "No" = "Not Mind Wanderer")) + coord_flip()
+
+ACCbyMWExp3TScong + stat_summary(fun.data="mean_sdl", mult=1,
+                                  geom="crossbar", width=0.2, stackdir='center',
+                                  position=position_dodge(.9))
+ACCbyMWExp3TScong + stat_summary(fun.data=mean_sdl, mult=1,
+                                  geom="pointrange", color="black", stackdir='center',
+                                  position=position_dodge(.9)) + geom_text(data = study2congruenceACC_sample_sizes, 
+            aes(label = paste("n =", sample_size), 
+                y = 1 + 0.025, 
+                x = congruence,
+                color = MWer),  # Use Probe for the interaction and color
+            position = position_dodge(width = 0.9),  
+            hjust = 0, vjust = -0.5, size = 5, color = "black", fontface = "bold", show.legend = FALSE)
+
 
 
 ACCbyMWExp3TScongruence <- ggplot(Experiment3TS, aes(x = congruence, y = correct, fill = congruence)) +
@@ -1573,6 +1788,43 @@ ACCbyMWExp3RTSART + stat_summary(fun.data=mean_sdl, mult=1,
 
 
 
+#For Presentation
+study2sartRT_sample_sizes <- Exp3SARTrtFilt %>% 
+  group_by(new_cond_column, MWer) %>% 
+  summarise(sample_size = n_distinct(subject), 
+            max_latency = max(latency, na.rm = TRUE))
+
+participant_avg_rt_SART <- Exp3SARTrtFilt %>%
+  group_by(subject, new_cond_column, MWer) %>%
+  summarize(avg_latency = mean(latency))
+
+# View the new dataframe
+print(participant_avg_rt_SART)
+
+ACCbyMWExp3RTSART <- ggplot(participant_avg_rt_SART, aes(x = new_cond_column, y = avg_latency, fill = MWer)) + 
+  geom_violin(trim = FALSE) +
+  labs(title = "Average Latency of Responses for Go Trials by Mind Wanderer and Enjoyment Condition", 
+       x = "Enjoyment Condition", 
+       y = "Average Latency of Go Trials",
+       fill = "Mind Wanderer") +
+  scale_x_discrete(labels = c("Enjoy" = "Enjoy", "NotEnjoy" = "Not Enjoy")) +
+  scale_fill_manual(values = c("Yes" = "blue", "No" = "red"),
+                    labels = c("Yes" = "Mind Wanderer", "No" = "Not Mind Wanderer")) + coord_flip()
+
+ACCbyMWExp3RTSART + stat_summary(fun.data="mean_sdl", mult=1,
+                                  geom="crossbar", width=0.2, stackdir='center',
+                                  position=position_dodge(.9))
+ACCbyMWExp3RTSART + stat_summary(fun.data=mean_sdl, mult=1,
+                                  geom="pointrange", color="black", stackdir='center',
+                                  position=position_dodge(.9)) + geom_text(data = study2sartRT_sample_sizes, 
+            aes(label = paste("n =", sample_size), 
+                y = 900 + 0.25, 
+                x = new_cond_column,
+                color = MWer),  # Use Probe for the interaction and color
+            position = position_dodge(width = 0.9),  
+            hjust = 0, vjust = -0.5, size = 5, color = "black", fontface = "bold", show.legend = FALSE)
+
+
 Exp3RTConfInt <- confint(Exp3RTlm)
 Exp3RTLMERresults <- summary(Exp3RTlm)
 frequentist_model_table(Exp3RTLMERresults, Exp3RTConfInt,
@@ -1678,6 +1930,46 @@ ACCbyMWExp3ACCSART + stat_summary(fun.data=mean_sdl, mult=1,
                                   geom="pointrange", color="black", stackdir='center',
                                   position=position_dodge(.9))
 
+
+#For Presentation
+study2sartACC_sample_sizes <- Exp3SARTaccFilt %>% 
+  group_by(new_cond_column, MWer) %>% 
+  summarise(sample_size = n_distinct(subject), 
+            max_acc = max(correct, na.rm = TRUE))
+
+participant_avg_acc_SART <- Exp3SARTaccFilt %>%
+  group_by(subject, new_cond_column, MWer) %>%
+  summarize(avg_accuracy = mean(correct))
+
+# View the new dataframe
+print(participant_avg_acc_SART)
+
+ACCbyMWExp3ACCSART <- ggplot(participant_avg_acc_SART, aes(x = new_cond_column, y = avg_accuracy, fill = MWer)) + 
+  geom_violin(trim = FALSE) +
+  labs(title = "Average Accuracy of Responses for No Go Trials by Mind Wanderer and Enjoyment Condition", 
+       x = "Enjoyment Condition", 
+       y = "Average Accuracy of No Go Trials",
+       fill = "Mind Wanderer") +
+  scale_x_discrete(labels = c("Enjoy" = "Enjoy", "NotEnjoy" = "Not Enjoy")) +
+  scale_fill_manual(values = c("Yes" = "blue", "No" = "red"),
+                    labels = c("Yes" = "Mind Wanderer", "No" = "Not Mind Wanderer")) + coord_flip()
+
+ACCbyMWExp3ACCSART + stat_summary(fun.data="mean_sdl", mult=1,
+                                  geom="crossbar", width=0.2, stackdir='center',
+                                  position=position_dodge(.9))
+ACCbyMWExp3ACCSART + stat_summary(fun.data=mean_sdl, mult=1,
+                                  geom="pointrange", color="black", stackdir='center',
+                                  position=position_dodge(.9)) + geom_text(data = study2sartRT_sample_sizes, 
+            aes(label = paste("n =", sample_size), 
+                y = 1 + 0.025, 
+                x = new_cond_column,
+                color = MWer),  # Use Probe for the interaction and color
+            position = position_dodge(width = 0.9),  
+            hjust = 0, vjust = -0.5, size = 5, color = "black", fontface = "bold", show.legend = FALSE)
+
+
+
+
 Exp3ACCbyGroup <- ggplot(Exp3SARTaccFilt, aes(x = new_cond_column, y = correct, fill = MWer)) +
   stat_summary(
     fun = "mean", 
@@ -1762,6 +2054,46 @@ ACCbyMWExp3FASART + stat_summary(fun.data="mean_sdl", mult=1,
 ACCbyMWExp3FASART + stat_summary(fun.data=mean_sdl, mult=1,
                                   geom="pointrange", color="black", stackdir='center',
                                   position=position_dodge(.9))
+
+
+
+
+#For Presentation
+study2sartFA_sample_sizes <- Exp3SARTfaFilt %>% 
+  group_by(new_cond_column, MWer) %>% 
+  summarise(sample_size = n_distinct(subject), 
+            max_fa = max(FA, na.rm = TRUE))
+
+participant_avg_fa_SART <- Exp3SARTfaFilt %>%
+  group_by(subject, new_cond_column, MWer) %>%
+  summarize(avg_fa = mean(FA))
+
+# View the new dataframe
+print(participant_avg_fa_SART)
+
+ACCbyMWExp3FASART <- ggplot(participant_avg_fa_SART, aes(x = new_cond_column, y = avg_fa, fill = MWer)) + 
+  geom_violin(trim = FALSE) +
+  labs(title = "Average False Alarm Rate by Mind Wanderer and Enjoyment Condition", 
+       x = "Enjoyment Condition", 
+       y = "Average False Alarm Rate",
+       fill = "Mind Wanderer") +
+  scale_x_discrete(labels = c("Enjoy" = "Enjoy", "NotEnjoy" = "Not Enjoy")) +
+  scale_fill_manual(values = c("Yes" = "blue", "No" = "red"),
+                    labels = c("Yes" = "Mind Wanderer", "No" = "Not Mind Wanderer")) + coord_flip()
+
+ACCbyMWExp3FASART + stat_summary(fun.data="mean_sdl", mult=1,
+                                  geom="crossbar", width=0.2, stackdir='center',
+                                  position=position_dodge(.9))
+ACCbyMWExp3FASART + stat_summary(fun.data=mean_sdl, mult=1,
+                                  geom="pointrange", color="black", stackdir='center',
+                                  position=position_dodge(.9)) + geom_text(data = study2sartFA_sample_sizes, 
+            aes(label = paste("n =", sample_size), 
+                y = 0.2 + 0.025, 
+                x = new_cond_column,
+                color = MWer),  # Use Probe for the interaction and color
+            position = position_dodge(width = 0.9),  
+            hjust = 0, vjust = -0.5, size = 5, color = "black", fontface = "bold", show.legend = FALSE)
+
 
 Exp3FAbyGroup <- ggplot(Exp3SARTfaFilt, aes(x = new_cond_column, y = FA, fill = MWer)) +
   stat_summary(
@@ -2500,6 +2832,8 @@ Engaged2
 
 
 ```{r Post Task Analyses for Exp1 and Exp3}
+library(car)
+library(boot)
 #Use effects coding and center continuous predictors
 #Differences in paid response between SONA vs MTurk
 
@@ -2514,25 +2848,24 @@ summary(lm(MR5 ~ MWer*new_exp_column, data = EXP1PostAnalysis))
 
 # EXP1PostAnalysis$Probe <- recode(EXP1PostAnalysis$new_exp_column, "'EXP1' = 'IP', 'EXP2' = 'PP', 'EXP3-SART' = 'PP', 'EXP3-TS' = 'PP'", T, F)
 
-EXP1PostAnalysis$Probe <- recode(EXP1PostAnalysis$new_exp_column, 
-                                  'EXP1' = 'IP', 
-                                  'EXP2' = 'PP', 
-                                  'EXP3-SART' = 'PP', 
-                                  'EXP3-TS' = 'PP')
+EXP1PostAnalysis <- EXP1PostAnalysis %>%
+  mutate(Probe = dplyr::recode(new_exp_column, 
+                                  EXP1 = 'IP', 
+                                  EXP2 = 'PP'))
 
 # EXP1PostAnalysis$Task <- recode(EXP1PostAnalysis$new_exp_column, "'EXP1' = 'SART'; 'EXP2' = 'SART'; 'EXP3-SART' = 'SART'; 'EXP3-TS' = 'TS'", T, F)
 
-EXP1PostAnalysis$Task <- recode(EXP1PostAnalysis$new_exp_column, 
-                                'EXP1' = 'SART', 
-                                'EXP2' = 'SART', 
-                                'EXP3-SART' = 'SART', 
+EXP1PostAnalysis$Task <- dplyr::recode(EXP1PostAnalysis$new_exp_column,
+                                'EXP1' = 'SART',
+                                'EXP2' = 'SART',
+                                'EXP3-SART' = 'SART',
                                 'EXP3-TS' = 'TS')
 
 table(EXP1PostAnalysis$Probe, EXP1PostAnalysis$Task)
 
 # EXP1PostAnalysis$MW <- recode(EXP1PostAnalysis$MWer, "'Yes' = 'MW'; 'No' = 'NMW'", T, F)
 
-EXP1PostAnalysis$MW <- recode(EXP1PostAnalysis$MWer, 
+EXP1PostAnalysis$MW <- dplyr::recode(EXP1PostAnalysis$MWer, 
                                'Yes' = 'MW', 
                                'No' = 'NMW')
 
@@ -2579,7 +2912,7 @@ Exp1Paidplot <- ggplot(EXP1PostAnalysis, aes(x = Probe, y = paid_response, fill 
        fill = "Probe Condition") +
   scale_x_discrete(labels = c("IP" = "Interrupting Probe", "PP" = "Post Probe")) +
   scale_fill_manual(values = c("IP" = "blue", "PP" = "red"),
-                    labels = c("IP" = "Interrupting Probe", "PP" = "Post Probe"))
+                    labels = c("IP" = "Interrupting Probe", "PP" = "Post Probe")) + coord_flip()
 
 Exp1Paidplot + stat_summary(fun.data="mean_sdl", mult=1,
                              geom="crossbar", width=0.2, stackdir='center',
@@ -2650,6 +2983,12 @@ ggplot(PaidMWlmProbeEXP1_2_data, aes(x = Probe, y = mean_value, fill = MW)) +
   scale_x_discrete(labels = c("IP" = "Interrupting Probe",
                               "PP" = "Post Probe"))
 
+#For Presentation
+study1paid_sample_sizes <- EXP1PostAnalysis %>% 
+  group_by(Probe, MW) %>% 
+  summarise(sample_size = n_distinct(subject), 
+            max_paid = max(paid_response, na.rm = TRUE))
+
 Exp1Paidplot1 <- ggplot(EXP1PostAnalysis, aes(x = Probe, y = paid_response, fill = MW)) + 
   geom_violin(trim = FALSE) +
   labs(title = "Average Amount Required to be Paid to Re-enaged With the Task by \nProbe Condition and Mind Wanderer", 
@@ -2658,14 +2997,20 @@ Exp1Paidplot1 <- ggplot(EXP1PostAnalysis, aes(x = Probe, y = paid_response, fill
        fill = "Mind Wanderer") +
   scale_x_discrete(labels = c("IP" = "Interrupting Probe", "PP" = "Post Probe")) +
   scale_fill_manual(values = c("MW" = "blue", "NMW" = "red"),
-                    labels = c("MW" = "Mind Wanderer", "NMW" = "Not Mind Wanderer"))
+                    labels = c("MW" = "Mind Wanderer", "NMW" = "Not Mind Wanderer")) + coord_flip()
 
 Exp1Paidplot1 + stat_summary(fun.data="mean_sdl", mult=1,
                              geom="crossbar", width=0.2, stackdir='center',
                              position=position_dodge(.9))
 Exp1Paidplot1 + stat_summary(fun.data=mean_sdl, mult=1,
                              geom="pointrange", color="black", stackdir='center',
-                             position=position_dodge(.9))
+                             position=position_dodge(.9)) + geom_text(data = study1paid_sample_sizes, 
+            aes(label = paste("n =", sample_size), 
+                y = 125 + 0.5, 
+                x = Probe,
+                color = MW),  # Use Probe for the interaction and color
+            position = position_dodge(width = 0.9),  
+            hjust = 0, vjust = -0.5, size = 5, color = "black", fontface = "bold", show.legend = FALSE)
 
 PaidLmresult <- EXP1PostAnalysis %>%
   group_by(new_exp_column, MWer) %>%
@@ -2688,11 +3033,11 @@ EXP3PostAnalysis <- EFAanalysis %>% filter(new_exp_column != "EXP1")
 EXP3PostAnalysis <- EXP3PostAnalysis %>% filter(new_exp_column != "EXP2")
 
 
-EXP3PostAnalysis$Probe <- recode(EXP3PostAnalysis$new_exp_column,'EXP3-SART' = 'PP', 'EXP3-TS' = 'PP')
-EXP3PostAnalysis$Task <- recode(EXP3PostAnalysis$new_exp_column, 'EXP3-SART' = 'SART', 'EXP3-TS' = 'TS')
+EXP3PostAnalysis$Probe <- dplyr::recode(EXP3PostAnalysis$new_exp_column,'EXP3-SART' = 'PP', 'EXP3-TS' = 'PP')
+EXP3PostAnalysis$Task <- dplyr::recode(EXP3PostAnalysis$new_exp_column, 'EXP3-SART' = 'SART', 'EXP3-TS' = 'TS')
 table(EXP3PostAnalysis$Probe, EXP3PostAnalysis$Task)
 
-EXP3PostAnalysis$MW <- recode(EXP3PostAnalysis$MWer, 'Yes' = 'MW', 'No' = 'NMW')
+EXP3PostAnalysis$MW <- dplyr::recode(EXP3PostAnalysis$MWer, 'Yes' = 'MW', 'No' = 'NMW')
 
 
 
@@ -2829,11 +3174,11 @@ contrasts(EFAanalysisnorm$new_cond_column) = contr.sum(2)
 # summary(lm(paid_response~new_exp_column+MWer+scale(MR1,scale = F)+scale(MR5,scale = F), data = EFAanalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum")))
 # #summary(lm(MR1 ~ new_exp_column*MWer, data = EFAanalysisnorm))
 
-EFAanalysis$Probe <- recode(EFAanalysis$new_exp_column, 'EXP1' = 'IP', 'EXP2' = 'PP', 'EXP3-SART' = 'PP', 'EXP3-TS' = 'PP')
-EFAanalysis$Task <- recode(EFAanalysis$new_exp_column, 'EXP1' = 'SART', 'EXP2' = 'SART', 'EXP3-SART' = 'SART', 'EXP3-TS' = 'TS')
+EFAanalysis$Probe <- dplyr::recode(EFAanalysis$new_exp_column, 'EXP1' = 'IP', 'EXP2' = 'PP', 'EXP3-SART' = 'PP', 'EXP3-TS' = 'PP')
+EFAanalysis$Task <- dplyr::recode(EFAanalysis$new_exp_column, 'EXP1' = 'SART', 'EXP2' = 'SART', 'EXP3-SART' = 'SART', 'EXP3-TS' = 'TS')
 table(EFAanalysis$Probe, EFAanalysis$Task)
 
-EFAanalysis$MW <- recode(EFAanalysis$MWer, 'Yes' = 'MW', 'No' = 'NMW')
+EFAanalysis$MW <- dplyr::recode(EFAanalysis$MWer, 'Yes' = 'MW', 'No' = 'NMW')
 
 #report this model - relevel the MWer factor so Yes is first
 Foo <- lm(MR1~Probe+Task+MW+Probe:MW, data = EFAanalysis, contrasts = list(Probe = "contr.sum", Task = "contr.sum", MW = "contr.sum"))
@@ -2873,12 +3218,68 @@ MR1plot <- ggplot(EFAanalysis, aes(x = MW, y = MR1, fill = MW)) +
        fill = "Mind Wanderer") +
   scale_x_discrete(labels = c("MW" = "Mind Wanderer", "NMW" = "Not Mind Wanderer")) +
   scale_fill_manual(values = c("MW" = "blue", "NMW" = "red"),
-                    labels = c("MW" = "Mind Wanderer", "NMW" = "Not Mind Wanderer"))
+                    labels = c("MW" = "Mind Wanderer", "NMW" = "Not Mind Wanderer")) + coord_flip()
 
 MR1plot + stat_summary(fun.data="mean_sdl", mult=1, 
                  geom="crossbar", width=0.2 )
 MR1plot + stat_summary(fun.data=mean_sdl, mult=1, 
                  geom="pointrange", color="black")
+
+
+sample_sizes <- EFAanalysis %>% 
+  group_by(MW, Probe) %>% 
+  summarise(sample_size = n(), 
+            max_MR1 = max(MR1, na.rm = TRUE),
+            max_MR3 = max(MR3, na.rm = TRUE),
+            max_MR5 = max(MR5, na.rm = TRUE),
+            max_PR = max(paid_response, na.rm = TRUE))
+
+MR1plot <- ggplot(EFAanalysis, aes(x = MW, y = MR1, fill = Probe)) + 
+  geom_violin(trim = FALSE) +
+  labs(title = "Average Positive Affect Factor Scores by Mind Wanderer and Probe Condition", 
+       x = "Mind Wanderer", 
+       y = "Average Positive Affect Factor Scores",
+       fill = "Probe Condition") +
+  scale_x_discrete(labels = c("MW" = "Mind Wanderer", "NMW" = "Not Mind Wanderer")) +
+  scale_fill_manual(values = c("IP" = "blue", "PP" = "red"),
+                    labels = c("IP" = "Interrupting Probe", "PP" = "Post Probe")) + coord_flip()
+
+MR1plot + stat_summary(fun.data="mean_sdl", mult=1, 
+                 geom="crossbar", width=0.2, stackdir = 'center',
+                 position=position_dodge(.9) )
+MR1plot + stat_summary(fun.data=mean_sdl, mult=1, 
+                 geom="pointrange", color="black", stackdir = 'center',
+                 position=position_dodge(.9)) + geom_text(data = sample_sizes, 
+            aes(label = paste("n =", sample_size), 
+                y = max_MR1 + 0.5, 
+                x = MW,
+                color = Probe),  # Use Probe for the interaction and color
+            position = position_dodge(width = 0.9),  
+            hjust = 0, vjust = -0.5, size = 5, color = "black", fontface = "bold", show.legend = FALSE)
+
+MR1plot <- ggplot(EFAanalysis, aes(x = Probe, y = MR1, fill = MW)) + 
+  geom_violin(trim = FALSE) +
+  labs(title = "Average Positive Affect Factor Scores by Mind Wanderer and Probe Condition", 
+       x = "Probe Condition", 
+       y = "Average Positive Affect Factor Scores",
+       fill = "Mind Wanderer") +
+  scale_x_discrete(labels = c("IP" = "Interrupting Probe", "PP" = "Post Probe")) +
+  scale_fill_manual(values = c("MW" = "blue", "NMW" = "red"),
+                    labels = c("MW" = "Mind Wanderer", "NMW" = "Not Mind Wanderer")) + coord_flip()
+
+MR1plot + stat_summary(fun.data="mean_sdl", mult=1, 
+                 geom="crossbar", width=0.2, stackdir = 'center',
+                 position=position_dodge(.9))
+MR1plot + stat_summary(fun.data=mean_sdl, mult=1, 
+                 geom="pointrange", color="black", stackdir = 'center',
+                 position=position_dodge(.9)) + geom_text(data = sample_sizes, 
+            aes(label = paste("n =", sample_size), 
+                y = max_MR1 + 0.5, 
+                x = Probe,
+                color = MW),  # Use Probe for the interaction and color
+            position = position_dodge(width = 0.9),  
+            hjust = 0, vjust = -0.5, size = 5, color = "black", fontface = "bold", show.legend = FALSE)
+
 
 MR1plot_2 <- ggplot(EFAanalysis, aes(x = Probe, y = MR1, fill = Probe)) + 
   geom_violin(trim = FALSE) +
@@ -2943,20 +3344,28 @@ ggplot(MR3MWlmProbeEFAanalysis_data, aes(x = Probe, y = mean_value, fill = Probe
                               "PP" = "Post Probe"))
 
 #Violin Plots
-MR3plot <- ggplot(EFAanalysis, aes(x = Probe, y = MR3, fill = Probe)) + 
+MR3plot <- ggplot(EFAanalysis, aes(x = Probe, y = MR3, fill = MW)) + 
   geom_violin(trim = FALSE) +
-  labs(title = "Average GTQ Factor Scores by Probe Condition", 
-       x = "Probe", 
+  labs(title = "Average GTQ Factor Scores by Probe Condition and Mind Wanderer", 
+       x = "Probe Condition", 
        y = "Average GTQ Factor Scores",
-       fill = "Probe Condition") +
+       fill = "Mind Wanderer") +
   scale_x_discrete(labels = c("IP" = "Interrupting Probe", "PP" = "Post Probe")) +
-  scale_fill_manual(values = c("IP" = "blue", "PP" = "red"),
-                    labels = c("IP" = "Interrupting Probe", "PP" = "Post Probe"))
+  scale_fill_manual(values = c("MW" = "blue", "NMW" = "red"),
+                    labels = c("MW" = "Mind Wanderer", "NMW" = "Not Mind Wanderer")) + coord_flip()
 
 MR3plot + stat_summary(fun.data="mean_sdl", mult=1, 
-                 geom="crossbar", width=0.2 )
+                 geom="crossbar", width=0.2, stackdir = 'center',
+                 position=position_dodge(.9))
 MR3plot + stat_summary(fun.data=mean_sdl, mult=1, 
-                 geom="pointrange", color="black")
+                 geom="pointrange", color="black", stackdir = 'center',
+                 position=position_dodge(.9)) + geom_text(data = sample_sizes, 
+            aes(label = paste("n =", sample_size), 
+                y = max_MR3 + 0.5, 
+                x = Probe,
+                color = MW),  # Use Probe for the interaction and color
+            position = position_dodge(width = 0.9),  
+            hjust = 0, vjust = -0.5, size = 5, color = "black", fontface = "bold", show.legend = FALSE)
 
 Foo <- lm(MR4~Probe+Task+MW+Probe:MW, data = EFAanalysis, contrasts = list(Probe = "contr.sum", Task = "contr.sum", MW = "contr.sum"))
 confint(Foo)
@@ -2969,20 +3378,28 @@ confint(Foo)
 
 average_stressMW <- aggregate(MR5 ~ MW, data = EFAanalysis, FUN = mean_sd)
 
-MR5plot <- ggplot(EFAanalysis, aes(x = MW, y = MR5, fill = MW)) + 
+MR5plot <- ggplot(EFAanalysis, aes(x = MW, y = MR5, fill = Probe)) + 
   geom_violin(trim = FALSE) +
-  labs(title = "Average Stress Factor Scores by Mind Wanderer", 
+  labs(title = "Average Stress Factor Scores by Probe Condition and Mind Wanderer", 
        x = "Mind Wanderer", 
        y = "Average Stress Factor Scores",
-       fill = "Mind Wanderer") +
+       fill = "Probe Condition") +
   scale_x_discrete(labels = c("MW" = "Mind Wanderer", "NMW" = "Not Mind Wanderer")) +
-  scale_fill_manual(values = c("MW" = "blue", "NMW" = "red"),
-                    labels = c("MW" = "Mind Wanderer", "NMW" = "Not Mind Wanderer"))
+  scale_fill_manual(values = c("IP" = "blue", "PP" = "red"),
+                    labels = c("IP" = "Interrupting Probe", "PP" = "Post Probe")) + coord_flip()
 
 MR5plot + stat_summary(fun.data="mean_sdl", mult=1, 
-                 geom="crossbar", width=0.2 )
+                 geom="crossbar", width=0.2, stackdir = 'center',
+                 position=position_dodge(.9) )
 MR5plot + stat_summary(fun.data=mean_sdl, mult=1, 
-                 geom="pointrange", color="black")
+                 geom="pointrange", color="black", stackdir = 'center',
+                 position=position_dodge(.9))+ geom_text(data = sample_sizes, 
+            aes(label = paste("n =", sample_size), 
+                y = max_MR5 + 0.5, 
+                x = MW,
+                color = Probe),  # Use Probe for the interaction and color
+            position = position_dodge(width = 0.9),  
+            hjust = 0, vjust = -0.5, size = 5, color = "black", fontface = "bold", show.legend = FALSE)
 #dropping mturk_sona - too unbalanced, mturk is disproportionate of PP to IP, is a confound, not orthogonal.  too much of a proxy variable.  But leave in for the paid response models.  The effects are big for probe.
 
 ######################################################################################################################Ignore the following
@@ -3066,6 +3483,10 @@ Foo <- lm(paid_response~Probe+MW+Task+Probe:MW , data = EFAanalysis, contrasts =
 summary(Foo)
 confint(Foo)
 
+study3paid_sample_sizes <- EFAanalysis %>% 
+  group_by(Probe, MW) %>% 
+  summarise(sample_size = n_distinct(subject), 
+            max_paid = max(paid_response, na.rm = TRUE))
 
 PaidRespS3 <- ggplot(EFAanalysis, aes(x = Probe, y = paid_response, fill = MW)) + 
   geom_violin(trim = FALSE) +
@@ -3073,16 +3494,22 @@ PaidRespS3 <- ggplot(EFAanalysis, aes(x = Probe, y = paid_response, fill = MW)) 
        x = "Probe Condition", 
        y = "Average Paid Response",
        fill = "Mind Wanderer") +
-  scale_x_discrete(labels = c("MW" = "Mind Wanderer", "NMW" = "Not Mind Wanderer")) +
+  scale_x_discrete(labels = c("IP" = "Interrupting Probe", "PP" = "Post Probe")) +
   scale_fill_manual(values = c("MW" = "blue", "NMW" = "red"),
-                    labels = c("MW" = "Mind Wanderer", "NMW" = "Not Mind Wanderer")) 
+                    labels = c("MW" = "Mind Wanderer", "NMW" = "Not Mind Wanderer")) + coord_flip()
 
 PaidRespS3 + stat_summary(fun.data="mean_sdl", mult=1,
                                   geom="crossbar", width=0.2, stackdir='center',
                                   position=position_dodge(.9))
 PaidRespS3 + stat_summary(fun.data=mean_sdl, mult=1,
                                   geom="pointrange", color="black", stackdir='center',
-                                  position=position_dodge(.9))
+                                  position=position_dodge(.9)) + geom_text(data = study3paid_sample_sizes, 
+            aes(label = paste("n =", sample_size), 
+                y = 125 + 0.5, 
+                x = Probe,
+                color = MW),  # Use Probe for the interaction and color
+            position = position_dodge(width = 0.9),  
+            hjust = 0, vjust = -0.5, size = 5, color = "black", fontface = "bold", show.legend = FALSE)
 
 
 #Changed to exclude from report.  Are not including the mturk_sona predictor.
