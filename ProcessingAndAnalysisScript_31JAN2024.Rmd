@@ -414,7 +414,13 @@ EXP1MWotheraverages <- EXP1MWotheraverages %>%
 
 EXP1MWcatchTrialsAverages <- merge(merge(EXP1MWcatchaverages, EXP1MWonTaskaverages, by = "subject"), EXP1MWotheraverages, by = "subject")
 
+
+
 EXP2df <- df %>% filter(grepl("^EXP2", new_exp_column, ignore.case = TRUE))
+EXP2MWcatch <- EXP2df[!duplicated(EXP2df), ]
+EXP2MWcatch <- EXP2MWcatch %>% dplyr::select(subject, MWcatch_response, MWonTask_response, MWother_response)
+
+MergedMWcatch <- rbind(EXP1MWcatchTrialsAverages, EXP2MWcatch)
 
 #Filters code for probe responses only
 EXP1df <- EXP1df %>% filter(grepl('probe', trialcode))
@@ -517,6 +523,15 @@ MWresult_dataExp1Exp2$subject <- as.integer(MWresult_dataExp1Exp2$subject)
 
 
 MWassign <- left_join(ProbeRespons, MWresult_dataExp1Exp2, by = 'subject')
+MWassign <- left_join(MWassign, MergedMWcatch, by = 'subject')
+MWassign$MWcatch_response[is.na(MWassign$MWcatch_response)] <- 0
+
+MWassign$MWer_final <- ifelse(MWassign$MWer == "Yes" & MWassign$MWcatch_response >=51, "MW", "NMW")
+MWassign <- MWassign %>% 
+  rename(MWer_pre = MWer,
+         MWer = MWer_final)
+
+MWassign <- MWassign %>% dplyr::select(subject, new_exp_column, new_cond_column, probe_response, paid_response, mturk_sona, MWer)
 
 Exp1EnjoyAnalysis <- MWassign %>% filter(new_exp_column == 'EXP1')
 Exp1EnjoyAnalysis <- Exp1EnjoyAnalysis %>% filter(new_cond_column == 'Enjoy')
@@ -556,6 +571,7 @@ exp1exp2Analysis2$MWer <- as.factor(exp1exp2Analysis2$MWer)
 # write.csv(exp1exp2Analysis2, "C:/Users/Cisler/Desktop/Data/For Analysis/ProbeAnalysisForRQs1and2.csv")
 # write.csv(df, "C:/Users/Cisler/Desktop/Data/For Analysis/CompleteDatasetWithTransformationsAndModifications_17JAN2024.csv")
 
+exp1exp2Analysis2$MWer <- relevel(exp1exp2Analysis2$MWer, ref = "NMW")
 MWerModel <- glm(formula = MWer ~ mturk_sona + new_exp_column + new_cond_column + new_exp_column:new_cond_column + mturk_sona:new_cond_column, family = binomial(link = "logit"), 
     data = exp1exp2Analysis2)
 summary(MWerModel)
