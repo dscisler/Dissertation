@@ -1044,6 +1044,11 @@ participant_avg_missExp1 <- SARTmissFilt %>%
   summarize(avg_miss = mean(miss),
             sd_miss = sd(miss))
 
+participant_avg_missExp1_stat <- SARTmissFilt %>%
+  group_by(mturk_sona) %>%
+  summarize(avg_miss = mean(miss),
+            sd_miss = sd(miss))
+
 # View the new dataframe
 print(participant_avg_missExp1)
 
@@ -1896,6 +1901,11 @@ participant_avg_rt_SART <- Exp3SARTrtFilt %>%
   group_by(subject, new_cond_column, MWer) %>%
   summarize(avg_latency = mean(latency))
 
+participant_avg_rt_SART_stats <- Exp3SARTrtFilt %>%
+  group_by(new_cond_column, MWer) %>%
+  summarize(avg_latency = mean(latency),
+            sd_latency = sd(latency))
+
 # View the new dataframe
 print(participant_avg_rt_SART)
 
@@ -2005,6 +2015,7 @@ print(Exp3RTbyConditionsInt)
 
 Exp3ACClm <- glmer(correct~new_cond_column * MWer + (1 | subject), data=Exp3SARTaccFilt, family = binomial)
 summary(Exp3ACClm)
+exp(confint(Exp3ACClm))
 
 Exp3ACCConfInt <- confint(Exp3ACClm)
 Exp3ACCLMERresults <- summary(Exp3ACClm)
@@ -2038,13 +2049,13 @@ print(participant_avg_acc_SART)
 
 ACCbyMWExp3ACCSART <- ggplot(participant_avg_acc_SART, aes(x = new_cond_column, y = avg_accuracy, fill = MWer)) + 
   geom_violin(trim = FALSE) +
-  labs(title = "Average Accuracy of Responses for No Go Trials by Mind Wanderer and Enjoyment Condition", 
+  labs(title = "Average Accuracy of Responses for No Go Trials by Levels of Mind Wandering \nand Enjoyment Condition", 
        x = "Enjoyment Condition", 
        y = "Average Accuracy of No Go Trials",
-       fill = "Mind Wanderer") +
+       fill = "Levels of Mind Wandering") +
   scale_x_discrete(labels = c("Enjoy" = "Enjoy", "NotEnjoy" = "Not Enjoy")) +
-  scale_fill_manual(values = c("Yes" = "blue", "No" = "red"),
-                    labels = c("Yes" = "Mind Wanderer", "No" = "Not Mind Wanderer"))
+  scale_fill_manual(values = c("MW" = "blue", "NMW" = "red"),
+                    labels = c("MW" = "High Levels of Mind Wandering", "NMW" = "Low Levels of Mind Wandering"))
 
 ACCbyMWExp3ACCSART + stat_summary(fun.data="mean_sdl", mult=1,
                                   geom="crossbar", width=0.2, stackdir='center',
@@ -2128,8 +2139,10 @@ Exp3SARTmissFILT <- Exp3SARTaccFilt
 # Exp3FAlm <- lm(FA ~ new_cond_column*MWer, data = Exp3SARTfaFilt)
 # summary(Exp3FAlm)
 
-Exp3FAlm <- lmer(FA~new_cond_column * MWer + (1 | subject), data=Exp3SARTfaFilt)
+Exp3FAlm <- glmer(FA~new_cond_column * MWer + (1 | subject), data=Exp3SARTfaFilt, family = binomial)
 summary(Exp3FAlm)
+tidy(Exp3FAlm,conf.int=TRUE,exponentiate=TRUE,effects="fixed")
+
 
 Exp3FAConfInt <- confint(Exp3FAlm)
 Exp3FALMERresults <- summary(Exp3FAlm)
@@ -2163,13 +2176,13 @@ print(participant_avg_fa_SART)
 
 ACCbyMWExp3FASART <- ggplot(participant_avg_fa_SART, aes(x = new_cond_column, y = avg_fa, fill = MWer)) + 
   geom_violin(trim = FALSE) +
-  labs(title = "Average False Alarm Rate by Mind Wanderer and Enjoyment Condition", 
+  labs(title = "Average Rate of Errors of Omission by Levels of Mind Wandering \nand Enjoyment Condition", 
        x = "Enjoyment Condition", 
-       y = "Average False Alarm Rate",
-       fill = "Mind Wanderer") +
+       y = "Average Rate of Errors of Omission",
+       fill = "Levels of Mind Wandering") +
   scale_x_discrete(labels = c("Enjoy" = "Enjoy", "NotEnjoy" = "Not Enjoy")) +
-  scale_fill_manual(values = c("Yes" = "blue", "No" = "red"),
-                    labels = c("Yes" = "Mind Wanderer", "No" = "Not Mind Wanderer"))
+  scale_fill_manual(values = c("MW" = "blue", "NMW" = "red"),
+                    labels = c("MW" = "High Levels of Mind Wandering", "NMW" = "Low Levels of Mind Wandering"))
 
 ACCbyMWExp3FASART + stat_summary(fun.data="mean_sdl", mult=1,
                                   geom="crossbar", width=0.2, stackdir='center',
@@ -2178,6 +2191,38 @@ ACCbyMWExp3FASART + stat_summary(fun.data=mean_sdl, mult=1,
                                   geom="pointrange", color="black", stackdir='center',
                                   position=position_dodge(.9))
 
+
+
+
+Exp3misslm <- glmer(miss~new_cond_column * MWer + (1 | subject), data=Exp3SARTmissFilt, family = binomial)
+summary(Exp3misslm)
+tidy(Exp3misslm,conf.int=TRUE,exponentiate=TRUE,effects="fixed")
+
+
+
+participant_avg_miss_SART <- Exp3SARTmissFilt %>%
+  group_by(subject, new_cond_column, MWer) %>%
+  summarize(avg_miss = mean(miss))
+
+# View the new dataframe
+print(participant_avg_miss_SART)
+
+ACCbyMWExp3missSART <- ggplot(participant_avg_miss_SART, aes(x = new_cond_column, y = avg_miss, fill = MWer)) + 
+  geom_violin(trim = FALSE) +
+  labs(title = "Average Rate of Errors of Commission by Levels of Mind Wandering \nand Enjoyment Condition", 
+       x = "Enjoyment Condition", 
+       y = "Average Rate of Errors of Commission",
+       fill = "Levels of Mind Wandering") +
+  scale_x_discrete(labels = c("Enjoy" = "Enjoy", "NotEnjoy" = "Not Enjoy")) +
+  scale_fill_manual(values = c("MW" = "blue", "NMW" = "red"),
+                    labels = c("MW" = "High Levels of Mind Wandering", "NMW" = "Low Levels of Mind Wandering"))
+
+ACCbyMWExp3missSART + stat_summary(fun.data="mean_sdl", mult=1,
+                                  geom="crossbar", width=0.2, stackdir='center',
+                                  position=position_dodge(.9))
+ACCbyMWExp3missSART + stat_summary(fun.data=mean_sdl, mult=1,
+                                  geom="pointrange", color="black", stackdir='center',
+                                  position=position_dodge(.9))
 
 
 
@@ -2324,11 +2369,17 @@ library(GPArotation)
 
 SurveyAnalysis <- df
 
-MWerResultsData <- rbind(MWresult_dataExp1Exp2, result_dataSART, result_dataTS)
+Exp1WMinfo <- exp1exp2Analysis2 %>% dplyr::select(subject, MWer)
+Exp3TSinfo <- Experiment3TS %>% dplyr::select(subject, MWer)
+Exp3SARTinfo <- Experiment3SART %>% dplyr::select(subject, MWer)
+MWerResultsData <- rbind(Exp1WMinfo, Exp3TSinfo, Exp3SARTinfo)
+MWerResultsData <- MWerResultsData[!duplicated(MWerResultsData$subject), ]
+
 
 SurveyAnalysis <- left_join(SurveyAnalysis, MWerResultsData, by = "subject")
 SurveyAnalysis <- SurveyAnalysis %>% filter(!is.na(MWer))
 length(unique(SurveyAnalysis$subject))
+SurveyAnalysis$MWer <- relevel(SurveyAnalysis$MWer, ref = "MW")
 
 #NASA-TLX Transformations
 SurveyAnalysis <- SurveyAnalysis %>%
@@ -2363,12 +2414,24 @@ PostSurveys$interest_responseNum <- ifelse(PostSurveys$interest_response == 'Not
 
 PostSurveys <- PostSurveys %>% filter(MWer != "Tie")
 
+PostSurveys$MWer <- relevel(PostSurveys$MWer, ref = "MW")
+
 
 ggplot(PostSurveys, aes(x = paid_response, fill = new_exp_column)) +
   geom_density(alpha=0.2)
 
 ggplot(PostSurveys, aes(x = paid_response, fill = MWer)) +
-  geom_density(alpha=0.2)
+  geom_density(alpha=0.2) +
+  scale_fill_manual(values = c("High Levels of Mind Wandering" = "red", "Low Levels of Mind Wandering" = "blue"))
+
+ggplot(PostSurveys, aes(x = paid_response, fill = MWer)) +
+  geom_density(alpha = 0.2) +
+  labs(fill = "Mind Wandering Levels") +
+  scale_fill_manual(values = c("blue", "red"),
+                    breaks = c("MW", "NMW"),
+                    labels = c("High Levels of Mind Wandering", "Low Levels of Mind Wandering"))
+
+
 
 MWprobePlace <- ggplot(data = PostSurveys, aes(x = new_exp_column, y = paid_response, fill = MWer)) +
   geom_bar(stat = "summary", fun = "mean", position = "dodge") + 
@@ -2408,6 +2471,9 @@ summary(lm(MR2 ~ new_exp_column*new_cond_column*MWer, data= EFAanalysis))
 summary(lm(MR3 ~ new_exp_column*new_cond_column*MWer, data= EFAanalysis))
 summary(lm(MR4 ~ new_exp_column*new_cond_column*MWer, data= EFAanalysis))
 summary(lm(MR5 ~ new_exp_column*new_cond_column*MWer, data= EFAanalysis))
+
+EFAanalysis$MWcatch_response[is.na(EFAanalysis$MWcatch_response)] <- 0
+EFAanalysis$MW <- ifelse(EFAanalysis$MWer == "Yes" & EFAanalysis$MWcatch_response >= 51, "MW", "NMW")
 
 ggplot(EFAanalysis, aes(x = MR1, color = MWer)) +
    geom_density()
@@ -2989,8 +3055,8 @@ table(EXP1PostAnalysis$Probe, EXP1PostAnalysis$Task)
 # EXP1PostAnalysis$MW <- recode(EXP1PostAnalysis$MWer, "'Yes' = 'MW'; 'No' = 'NMW'", T, F)
 
 EXP1PostAnalysis$MW <- dplyr::recode(EXP1PostAnalysis$MWer, 
-                               'Yes' = 'MW', 
-                               'No' = 'NMW')
+                               'MW' = 'MW', 
+                               'NMW' = 'NMW')
 
 
 
@@ -3006,6 +3072,11 @@ summary(PaidMWlmProbeEXP1)
 confint(PaidMWlmProbeEXP1)
 table(EXP1PostAnalysis$Probe, EXP1PostAnalysis$MW)
 #
+
+participant_avg_paid_stat <- EXP1PostAnalysis %>%
+     group_by(Probe, MW) %>%
+     summarize(avg_pay = mean(paid_response),
+               sd_pay = sd(paid_response))
 
 rsq_function <- function(data, indices) {
   d <- data[indices,] #allows boot to select sample
@@ -3027,15 +3098,15 @@ PaidMWlmProbeEXP1 <- lm(paid_response~mturk_sona*new_exp_column*new_cond_column,
 summary(PaidMWlmProbeEXP1)
 confint(PaidMWlmProbeEXP1)
 
-Exp1Paidplot <- ggplot(EXP1PostAnalysis, aes(x = Probe, y = paid_response, fill = Probe)) + 
+Exp1Paidplot <- ggplot(EXP1PostAnalysis, aes(x = Probe, y = paid_response, fill = MW)) + 
   geom_violin(trim = FALSE) +
   labs(title = "Average Amount Required to be Paid to Re-enage With the Task by \nProbe Condition", 
        x = "Probe Condition", 
        y = "Average Amount of Payment Required to Re-engage",
        fill = "Probe Condition") +
   scale_x_discrete(labels = c("IP" = "Interrupting Probe", "PP" = "Post Probe")) +
-  scale_fill_manual(values = c("IP" = "blue", "PP" = "red"),
-                    labels = c("IP" = "Interrupting Probe", "PP" = "Post Probe")) + coord_flip()
+  scale_fill_manual(values = c("MW" = "blue", "NMW" = "red"),
+                    labels = c("MW" = "Interrupting Probe", "PP" = "Post Probe")) 
 
 Exp1Paidplot + stat_summary(fun.data="mean_sdl", mult=1,
                              geom="crossbar", width=0.2, stackdir='center',
@@ -3114,13 +3185,13 @@ study1paid_sample_sizes <- EXP1PostAnalysis %>%
 
 Exp1Paidplot1 <- ggplot(EXP1PostAnalysis, aes(x = Probe, y = paid_response, fill = MW)) + 
   geom_violin(trim = FALSE) +
-  labs(title = "Average Amount Required to be Paid to Re-enaged With the Task by \nProbe Condition and Mind Wanderer", 
+  labs(title = "Average Amount Required to be Paid to Re-enaged With the Task by \nProbe Condition and Levels of Mind Wanderering", 
        x = "Probe Condition", 
        y = "Average Amount of Payment Required to Re-engage",
-       fill = "Mind Wanderer") +
+       fill = "Levels of Mind Wandering") +
   scale_x_discrete(labels = c("IP" = "Interrupting Probe", "PP" = "Post Probe")) +
   scale_fill_manual(values = c("MW" = "blue", "NMW" = "red"),
-                    labels = c("MW" = "Mind Wanderer", "NMW" = "Not Mind Wanderer")) + coord_flip()
+                    labels = c("MW" = "High Levels of Mind Wandering", "NMW" = "Low Levels of Mind Wandering")) 
 
 Exp1Paidplot1 + stat_summary(fun.data="mean_sdl", mult=1,
                              geom="crossbar", width=0.2, stackdir='center',
@@ -3160,7 +3231,7 @@ EXP3PostAnalysis$Probe <- dplyr::recode(EXP3PostAnalysis$new_exp_column,'EXP3-SA
 EXP3PostAnalysis$Task <- dplyr::recode(EXP3PostAnalysis$new_exp_column, 'EXP3-SART' = 'SART', 'EXP3-TS' = 'TS')
 table(EXP3PostAnalysis$Probe, EXP3PostAnalysis$Task)
 
-EXP3PostAnalysis$MW <- dplyr::recode(EXP3PostAnalysis$MWer, 'Yes' = 'MW', 'No' = 'NMW')
+EXP3PostAnalysis$MW <- dplyr::recode(EXP3PostAnalysis$MWer, 'MW' = 'MW', 'NMW' = 'NMW')
 
 
 
@@ -3177,11 +3248,11 @@ contrasts(EXP3PostAnalysis$new_cond_column) = contr.sum(2)
 # summary(lm(paid_response ~ new_exp_column+MWer+scale(MR1,scale = F)+scale(MR5,scale = F), data = EXP3PostAnalysis))
 
 
-PaidMWlmProbeEXP3 <- lm(paid_response~mturk_sona+MW+Task+mturk_sona:Task, data = EXP3PostAnalysis, contrasts = list(mturk_sona = "contr.sum", Task = "contr.sum", MW = "contr.sum"))
+PaidMWlmProbeEXP3 <- lm(paid_response~MW+Task+new_cond_:Task, data = EXP3PostAnalysis, contrasts = list(mturk_sona = "contr.sum", Task = "contr.sum", MW = "contr.sum"))
 summary(PaidMWlmProbeEXP3)
 confint(PaidMWlmProbeEXP3)
 
-PaidMWlmProbeEXP3 <- lm(paid_response~MWer+new_exp_column, data = EXP3PostAnalysis, contrasts = list(new_exp_column = "contr.sum", MWer = "contr.sum"))
+PaidMWlmProbeEXP3 <- lm(paid_response~MW+Task+MW:Task, data = EXP3PostAnalysis, contrasts = list(Task = "contr.sum", MW = "contr.sum"))
 summary(PaidMWlmProbeEXP3)
 confint(PaidMWlmProbeEXP3)
 
@@ -3205,15 +3276,16 @@ plot(reps)
 boot.ci(reps, type="bca")
 
 
-Exp3Paidplot <- ggplot(EXP3PostAnalysis, aes(x = Task, y = paid_response, fill = Task)) + 
+Exp3Paidplot <- ggplot(EXP3PostAnalysis, aes(x = MW, y = paid_response, fill = MW)) + 
   geom_violin(trim = FALSE) +
-  labs(title = "Average Amount Required to be Paid to Re-enage by Experimental Task", 
-       x = "Experimental Task", 
+  labs(title = "Average Amount Required to be Paid to Re-enage by Levels of Mind Wandering", 
+       x = "Levels of Mind Wandering", 
        y = "Average Amount of Payment Required to Re-engage",
-       fill = "Experimental Task") +
-  scale_x_discrete(labels = c("SART" = "SART", "TS" = "Task Switching")) +
-  scale_fill_manual(values = c("SART" = "blue", "TS" = "red"),
-                    labels = c("SART" = "SART", "TS" = "Task Switching"))
+       fill = "Levels of Mind Wandering") +
+  scale_x_discrete(labels = c("MW" = "High Levels of Mind Wandering", "NMW" = "Low Levels of Mind Wandering")) +
+  scale_fill_manual(values = c("MW" = "blue", "NMW" = "red"),
+                    labels = c("MW" = "High Levels of Mind Wandering", "NMW" = "Low Levels of Mind Wandering")) +
+  guides(fill = FALSE)
 
 Exp3Paidplot + stat_summary(fun.data="mean_sdl", mult=1,
                              geom="crossbar", width=0.2, stackdir='center',
@@ -3221,6 +3293,11 @@ Exp3Paidplot + stat_summary(fun.data="mean_sdl", mult=1,
 Exp3Paidplot + stat_summary(fun.data=mean_sdl, mult=1,
                              geom="pointrange", color="black", stackdir='center',
                              position=position_dodge(.9))
+
+ participant_avg_paid_exp3_stats <- EXP3PostAnalysis %>%
+     group_by(Task) %>%
+     summarize(avg_pay = mean(paid_response),
+               sd_pay = sd(paid_response))
 
 PaidMWlmProbeEXP2_data <- EXP3PostAnalysis %>%
   group_by(new_exp_column) %>%
@@ -3301,7 +3378,7 @@ EFAanalysis$Probe <- dplyr::recode(EFAanalysis$new_exp_column, 'EXP1' = 'IP', 'E
 EFAanalysis$Task <- dplyr::recode(EFAanalysis$new_exp_column, 'EXP1' = 'SART', 'EXP2' = 'SART', 'EXP3-SART' = 'SART', 'EXP3-TS' = 'TS')
 table(EFAanalysis$Probe, EFAanalysis$Task)
 
-EFAanalysis$MW <- dplyr::recode(EFAanalysis$MWer, 'Yes' = 'MW', 'No' = 'NMW')
+EFAanalysis$MW <- dplyr::recode(EFAanalysis$MWer, 'MW' = 'MW', 'NMW' = 'NMW')
 
 #report this model - relevel the MWer factor so Yes is first
 Foo <- lm(MR1~Probe+Task+MW+Probe:MW, data = EFAanalysis, contrasts = list(Probe = "contr.sum", Task = "contr.sum", MW = "contr.sum"))
@@ -3333,20 +3410,22 @@ ggplot(MR1MWlmProbeEFAanalysis_data, aes(x = Probe, y = mean_value, fill = MW)) 
 average_posAffect <- aggregate(MR1 ~ Probe, data = EFAanalysis, FUN = mean_sd)
 average_posAffectMW <- aggregate(MR1 ~ MW, data = EFAanalysis, FUN = mean_sd)
 
-MR1plot <- ggplot(EFAanalysis, aes(x = MW, y = MR1, fill = MW)) + 
+MR1plot <- ggplot(EFAanalysis, aes(x = Probe, y = MR1, fill = MW)) + 
   geom_violin(trim = FALSE) +
-  labs(title = "Average Positive Affect Factor Scores by Mind Wanderer", 
-       x = "Mind Wanderer", 
+  labs(title = "Average Positive Affect Factor Scores by Probe Condition and Levels of Mind Wandering", 
+       x = "Probe Condition", 
        y = "Average Positive Affect Factor Scores",
-       fill = "Mind Wanderer") +
-  scale_x_discrete(labels = c("MW" = "Mind Wanderer", "NMW" = "Not Mind Wanderer")) +
+       fill = "Levels of Mind Wandering") +
+  scale_x_discrete(labels = c("IP" = "Interrupting Probe", "PP" = "Post Probe")) +
   scale_fill_manual(values = c("MW" = "blue", "NMW" = "red"),
-                    labels = c("MW" = "Mind Wanderer", "NMW" = "Not Mind Wanderer")) + coord_flip()
+                    labels = c("MW" = "High Levels of Mind Wandering", "NMW" = "Low Levels of Mind Wandering")) 
 
 MR1plot + stat_summary(fun.data="mean_sdl", mult=1, 
-                 geom="crossbar", width=0.2 )
+                 geom="crossbar", width=0.2, stackdir = 'center',
+                 position=position_dodge(.9) )
 MR1plot + stat_summary(fun.data=mean_sdl, mult=1, 
-                 geom="pointrange", color="black")
+                 geom="pointrange", color="black", stackdir = 'center',
+                 position=position_dodge(.9))
 
 
 sample_sizes <- EFAanalysis %>% 
@@ -3467,15 +3546,15 @@ ggplot(MR3MWlmProbeEFAanalysis_data, aes(x = Probe, y = mean_value, fill = Probe
                               "PP" = "Post Probe"))
 
 #Violin Plots
-MR3plot <- ggplot(EFAanalysis, aes(x = Probe, y = MR3, fill = MW)) + 
+MR3plot <- ggplot(EFAanalysis, aes(x = Probe, y = MR3, fill = Probe)) + 
   geom_violin(trim = FALSE) +
   labs(title = "Average GTQ Factor Scores by Probe Condition and Mind Wanderer", 
        x = "Probe Condition", 
        y = "Average GTQ Factor Scores",
        fill = "Mind Wanderer") +
   scale_x_discrete(labels = c("IP" = "Interrupting Probe", "PP" = "Post Probe")) +
-  scale_fill_manual(values = c("MW" = "blue", "NMW" = "red"),
-                    labels = c("MW" = "Mind Wanderer", "NMW" = "Not Mind Wanderer")) + coord_flip()
+  scale_fill_manual(values = c("IP" = "blue", "PP" = "red"),
+                    labels = c("IP" = "Interrupting Probe", "PP" = "Post Probe"))
 
 MR3plot + stat_summary(fun.data="mean_sdl", mult=1, 
                  geom="crossbar", width=0.2, stackdir = 'center',
@@ -3501,15 +3580,16 @@ confint(Foo)
 
 average_stressMW <- aggregate(MR5 ~ MW, data = EFAanalysis, FUN = mean_sd)
 
-MR5plot <- ggplot(EFAanalysis, aes(x = MW, y = MR5, fill = Probe)) + 
+MR5plot <- ggplot(EFAanalysis, aes(x = MW, y = MR5, fill = MW)) + 
   geom_violin(trim = FALSE) +
   labs(title = "Average Stress Factor Scores by Probe Condition and Mind Wanderer", 
-       x = "Mind Wanderer", 
+       x = "Levels of Mind Wandering", 
        y = "Average Stress Factor Scores",
-       fill = "Probe Condition") +
-  scale_x_discrete(labels = c("MW" = "Mind Wanderer", "NMW" = "Not Mind Wanderer")) +
-  scale_fill_manual(values = c("IP" = "blue", "PP" = "red"),
-                    labels = c("IP" = "Interrupting Probe", "PP" = "Post Probe")) + coord_flip()
+       fill = "Levels of Mind Wandering") +
+  scale_x_discrete(labels = c("MW" = "High Levels of Mind Wandering", "NMW" = "Low Levels of Mind Wandering")) +
+  scale_fill_manual(values = c("MW" = "blue", "NMW" = "red"),
+                    labels = c("MW" = "High Levels of Mind Wandering", "NMW" = "Low Levels of Mind Wandering"))+
+  guides(fill = FALSE) 
 
 MR5plot + stat_summary(fun.data="mean_sdl", mult=1, 
                  geom="crossbar", width=0.2, stackdir = 'center',
@@ -3523,6 +3603,10 @@ MR5plot + stat_summary(fun.data=mean_sdl, mult=1,
                 color = Probe),  # Use Probe for the interaction and color
             position = position_dodge(width = 0.9),  
             hjust = 0, vjust = -0.5, size = 5, color = "black", fontface = "bold", show.legend = FALSE)
+
+
+
+
 #dropping mturk_sona - too unbalanced, mturk is disproportionate of PP to IP, is a confound, not orthogonal.  too much of a proxy variable.  But leave in for the paid response models.  The effects are big for probe.
 
 ######################################################################################################################Ignore the following
@@ -3613,13 +3697,13 @@ study3paid_sample_sizes <- EFAanalysis %>%
 
 PaidRespS3 <- ggplot(EFAanalysis, aes(x = Probe, y = paid_response, fill = MW)) + 
   geom_violin(trim = FALSE) +
-  labs(title = "Average Reported Amount to be Paid to Re-Engage With the Task by Probe Condition \nand Mind Wanderer", 
+  labs(title = "Average Reported Amount to be Paid to Re-Engage With the Task by Probe Condition \nand Levels of Mind Wandering", 
        x = "Probe Condition", 
        y = "Average Paid Response",
-       fill = "Mind Wanderer") +
+       fill = "Levels of Mind Wandering") +
   scale_x_discrete(labels = c("IP" = "Interrupting Probe", "PP" = "Post Probe")) +
   scale_fill_manual(values = c("MW" = "blue", "NMW" = "red"),
-                    labels = c("MW" = "Mind Wanderer", "NMW" = "Not Mind Wanderer")) + coord_flip()
+                    labels = c("MW" = "High Levels of Mind Wandering", "NMW" = "Low Levels of Mind Wandering")) 
 
 PaidRespS3 + stat_summary(fun.data="mean_sdl", mult=1,
                                   geom="crossbar", width=0.2, stackdir='center',
@@ -3634,6 +3718,11 @@ PaidRespS3 + stat_summary(fun.data=mean_sdl, mult=1,
             position = position_dodge(width = 0.9),  
             hjust = 0, vjust = -0.5, size = 5, color = "black", fontface = "bold", show.legend = FALSE)
 
+
+participant_avg_paid_efa_stats <- EFAanalysis %>%
+     group_by(Probe, MW) %>%
+     summarize(avg_pay = mean(paid_response),
+               sd_pay = sd(paid_response))
 
 #Changed to exclude from report.  Are not including the mturk_sona predictor.
 # Foo <- lm(paid_response~mturk_sona+Probe+MW+Task+Probe:MW , data = EFAanalysis, contrasts = list(mturk_sona = "contr.sum", Probe = "contr.sum", Task = "contr.sum", MW = "contr.sum"))
