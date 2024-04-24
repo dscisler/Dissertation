@@ -639,7 +639,7 @@ SARTexp1exp2$FA <- ifelse(SARTexp1exp2$trialtype == "Go" & SARTexp1exp2$correct 
 
 
 SARTrtFilt <- SARTexp1exp2 %>% filter(correct == 1)
-SARTrtFilt <- SARTexp1exp2 %>% filter(trialtype == "Go")
+SARTrtFilt <- SARTrtFilt %>% filter(trialtype == "Go")
 SARTfaFilt <- SARTexp1exp2 %>% filter(trialtype == "Go")
 
 SARTaccFilt <- SARTexp1exp2 %>% filter(trialtype == "NoGo")
@@ -647,7 +647,7 @@ SARTmissFilt <- SARTexp1exp2 %>% filter(trialtype == "NoGo")
 
 FAmean <- aggregate(FA ~ subject + new_exp_column + new_cond_column, SARTfaFilt, mean)
 Hitmean <- aggregate(correct ~ subject + new_exp_column + new_cond_column, SARTaccFilt, mean)
-Missmean <- aggregate(CR ~ subject + new_exp_column + new_cond_column, SARTrtFilt, mean)
+Missmean <- aggregate(miss ~ subject + new_exp_column + new_cond_column, SARTmissFilt, mean)
 RTmean <- aggregate(latency ~ subject + new_exp_column + new_cond_column, SARTrtFilt, mean)
 
 QualCheck <- left_join(Hitmean, FAmean, by = "subject") %>%
@@ -666,6 +666,8 @@ QualCheck2_2 <- SARTexp1exp2 %>% filter(subject == "197955474")
 ###Analysis of RT for SART
 # RTlm <- lm(latency~new_exp_column*new_cond_column, data = SARTrtFilt)
 # summary(RTlm)
+SARTrtSubCheck <- SARTrtFilt[!duplicated(SARTrtFilt$subject), ]
+table(SARTrtSubCheck$new_exp_column, SARTrtSubCheck$new_cond_column)
 
 RTlm <- lmer(latency~mturk_sona*new_exp_column*new_cond_column + (1|subject), data = SARTrtFilt)
 summary(RTlm)
@@ -1002,19 +1004,64 @@ print(participant_avg_faExp1)
 
 FAbyMWExp1 <- ggplot(participant_avg_faExp1, aes(x = new_exp_column, y = avg_FA, fill = new_exp_column)) + 
   geom_violin(trim = FALSE) +
-  labs(title = "Average False Alarms of Go Trials By Probe Condition", 
+  labs(title = "Average Errors of Omission of Go Trials By Probe Condition", 
        x = "Probe Condition", 
-       y = "Average False Alarms of Go Trials",
+       y = "Average Errors of Omission of Go Trials",
        fill = "Switch") +
   scale_x_discrete(labels = c("EXP1" = "Interrupting Probe", "EXP2" = "Post Probe")) +
   scale_fill_manual(values = c("EXP1" = "blue", "EXP2" = "red"),
                     labels = c("EXP1" = "Interrupting Probe", "EXP2" = "Post Probe")) +
-  guides(fill = FALSE) + coord_flip()  # Explicitly remove the legend
+  guides(fill = FALSE) # Explicitly remove the legend
 
 FAbyMWExp1 + stat_summary(fun.data="mean_sdl", mult=1,
                                   geom="crossbar", width=0.2, stackdir='center',
                                   position=position_dodge(.9))
 FAbyMWExp1 + stat_summary(fun.data=mean_sdl, mult=1,
+                                  geom="pointrange", color="black", stackdir='center',
+                                  position=position_dodge(.9))
+
+
+
+
+
+
+Misslm <- lmer(miss ~ mturk_sona*new_exp_column*new_cond_column + (1|subject), data = SARTmissFilt)
+MisslmConfInt <- confint(Misslm)
+MissLMERresults <- summary(Misslm)
+MisslmPseudoR2 <- r.squaredGLMM(Misslm)
+
+frequentist_model_table(MissLMERresults, MisslmConfInt,
+ # Replace colons in the names of interactions with times symbols
+  interaction_symbol_x = TRUE, 
+  
+  #Rename Title, for No title replace text with NULL
+  caption = "Errors of Commission by Probe Placement and Enjoyment Condition")
+
+
+
+participant_avg_missExp1 <- SARTmissFilt %>%
+  group_by(subject, mturk_sona) %>%
+  summarize(avg_miss = mean(miss),
+            sd_miss = sd(miss))
+
+# View the new dataframe
+print(participant_avg_missExp1)
+
+missbyMWExp1 <- ggplot(participant_avg_missExp1, aes(x = mturk_sona, y = avg_miss, fill = mturk_sona)) + 
+  geom_violin(trim = FALSE) +
+  labs(title = "Average Errors of Commission of No-Go Trials By Participant Pool", 
+       x = "Participant Pool", 
+       y = "Average Errors of Commission of No-Go Trials",
+       fill = "Participant Pool") +
+  scale_x_discrete(labels = c("MT" = "MTurk", "SS" = "SONA Systems")) +
+  scale_fill_manual(values = c("MT" = "blue", "SS" = "red"),
+                    labels = c("MT" = "MTurk", "SS" = "SONA Systems")) +
+  guides(fill = FALSE) # Explicitly remove the legend
+
+missbyMWExp1 + stat_summary(fun.data="mean_sdl", mult=1,
+                                  geom="crossbar", width=0.2, stackdir='center',
+                                  position=position_dodge(.9))
+missbyMWExp1 + stat_summary(fun.data=mean_sdl, mult=1,
                                   geom="pointrange", color="black", stackdir='center',
                                   position=position_dodge(.9))
 
@@ -1202,6 +1249,13 @@ result_dataTS$subject <- as.integer(result_dataTS$subject)
 
 
 Experiment3TS <- left_join(Experiment3TS, result_dataTS, by = "subject")
+Experiment3TS$MWcatch_response[is.na(Experiment3TS$MWcatch_response)] <- 0
+Experiment3TS$MWer_final <- ifelse(Experiment3TS$MWer == "Yes" & Experiment3TS$MWcatch_response >= 51, "MW", "NMW")
+Experiment3TS <- Experiment3TS %>%
+  rename(MWer_pre = MWer,
+         MWer = MWer_final)
+
+Experiment3TS <- Experiment3TS %>% dplyr::select(-MWer_pre)
 
 Experiment3TS$congruence <- as.factor(Experiment3TS$congruence)
 Experiment3TS$switch <- as.factor(Experiment3TS$switch)
@@ -1234,6 +1288,9 @@ MWTS_groupings <- Experiment3TS[!duplicated(Experiment3TS$subject), ]
 MWGroup_counts <- MWTS_groupings %>% 
   group_by(MWer, new_exp_column, new_cond_column) %>% 
   tally(name = "count_of_people")
+
+Experiment3TS$MWer <- as.factor(Experiment3TS$MWer)
+Experiment3TS$MWer <- relevel(Experiment3TS$MWer, ref = "NMW")
 
 TSlatency <- lmer(latency~new_cond_column*MWer*congruence*switch + (1|subject), data = Experiment3TS)
 TSlatencyConfInt <- confint(TSlatency)
@@ -1398,15 +1455,21 @@ frequentist_model_table(TSaccLMERresults, TSaccConfInt,
   #Rename Title, for No title replace text with NULL
   caption = "Accuracy by Enjoyment Condition, Mind Wanderer, Congruent and Switch Trials")
 
-TSacc <- lmer(correct~new_cond_column+MWer+congruence+switch + (1|subject), data = Experiment3TS)
-TSaccConfInt <- confint(TSacc)
-TSaccLMERresults <- summary(TSacc)
-frequentist_model_table(TSaccLMERresults, TSaccConfInt,
- # Replace colons in the names of interactions with times symbols
-  interaction_symbol_x = TRUE, 
-  
-  #Rename Title, for No title replace text with NULL
-  caption = "Accuracy by Enjoyment Condition, Mind Wanderer, Congruent and Switch Trials")
+TSacc <- glmer(correct~new_cond_column+MWer+congruence+switch+new_cond_column:MWer+switch:MWer+congruence:MWer + switch:congruence + (1|subject), data = Experiment3TS, family = binomial)
+summary(TSacc)
+exp(confint(TSacc))
+
+TSacc <- lmer(correct~new_cond_column+MWer+congruence+switch+new_cond_column:MWer+switch:MWer+congruence:MWer + switch:congruence + (1|subject), data = Experiment3TS)
+summary(TSacc)
+
+# TSaccConfInt <- confint(TSacc)
+# TSaccLMERresults <- summary(TSacc)
+# frequentist_model_table(TSaccLMERresults, TSaccConfInt,
+#  # Replace colons in the names of interactions with times symbols
+#   interaction_symbol_x = TRUE, 
+#   
+#   #Rename Title, for No title replace text with NULL
+#   caption = "Accuracy by Enjoyment Condition, Mind Wanderer, Congruent and Switch Trials")
 
 
 
@@ -1435,21 +1498,21 @@ average_acc_by_switch <- aggregate(correct ~ switch, data = Experiment3TS, FUN =
 average_acc_by_cong <- aggregate(correct ~ congruence, data = Experiment3TS, FUN = mean_sd)
 
 participant_avg_acc_switch <- Experiment3TS %>%
-  group_by(subject, switch) %>%
+  group_by(subject, switch, congruence) %>%
   summarize(avg_correct = mean(correct))
 
 # View the new dataframe
 print(participant_avg_acc_switch)
 
-ACCbyMWExp3TSswitch <- ggplot(participant_avg_acc_switch, aes(x = switch, y = avg_correct, fill = switch)) + 
+ACCbyMWExp3TSswitch <- ggplot(participant_avg_acc_switch, aes(x = switch, y = avg_correct, fill = congruence)) + 
   geom_violin(trim = FALSE) +
-  labs(title = "Accuracy of Task Switching Between Switch Conditions", 
+  labs(title = "Accuracy of Task Switching Between Switch Trials and Congruency", 
        x = "Switch", 
        y = "Average Task Switching Accuracy",
-       fill = "Switch") +
+       fill = "Congruence") +
   scale_x_discrete(labels = c("0" = "Non-Switch Trial", "1" = "Switch Trial")) +
-  scale_fill_manual(values = c("0" = "blue", "1" = "red"),
-                    labels = c("0" = "Non-Switch Trial", "1" = "Switch Trial"))
+  scale_fill_manual(values = c("1" = "blue", "2" = "red"),
+                    labels = c("1" = "Congruent Trial", "2" = "Incongruent Trial"))
 
 ACCbyMWExp3TSswitch + stat_summary(fun.data="mean_sdl", mult=1,
                                   geom="crossbar", width=0.2, stackdir='center',
@@ -1458,7 +1521,40 @@ ACCbyMWExp3TSswitch + stat_summary(fun.data=mean_sdl, mult=1,
                                   geom="pointrange", color="black", stackdir='center',
                                   position=position_dodge(.9))
 
+participant_avg_acc_switch_stat <- Experiment3TS %>%
+  group_by(switch, congruence) %>%
+  summarize(avg_correct = mean(correct),
+            avg_sd = sd(correct))
 
+
+participant_avg_acc_mwer <- Experiment3TS %>%
+  group_by(subject, MWer, congruence) %>%
+  summarize(avg_correct = mean(correct))
+
+# View the new dataframe
+print(participant_avg_acc_switch)
+
+ACCbyMWExp3TSmwer <- ggplot(participant_avg_acc_mwer, aes(x = congruence, y = avg_correct, fill = MWer)) + 
+  geom_violin(trim = FALSE) +
+  labs(title = "Accuracy of Task Switching Between Congruent Trials and Levels of Mind Wandering", 
+       x = "Congruency", 
+       y = "Average Task Switching Accuracy",
+       fill = "Levels of Mind Wandering") +
+  scale_x_discrete(labels = c("1" = "Congruent", "2" = "Incongruent")) +
+  scale_fill_manual(values = c("MW" = "blue", "NMW" = "red"),
+                    labels = c("MW" = "High Levels of Mind Wandering", "NMW" = "Low Levels of Mind Wandering"))
+
+ACCbyMWExp3TSmwer + stat_summary(fun.data="mean_sdl", mult=1,
+                                  geom="crossbar", width=0.2, stackdir='center',
+                                  position=position_dodge(.9))
+ACCbyMWExp3TSmwer + stat_summary(fun.data=mean_sdl, mult=1,
+                                  geom="pointrange", color="black", stackdir='center',
+                                  position=position_dodge(.9))
+
+participant_avg_acc_mwer_stat <- Experiment3TS %>%
+  group_by(MWer, congruence) %>%
+  summarize(avg_correct = mean(correct),
+            avg_sd = sd(correct))
 
 ACCbyMWExp3TS <- ggplot(Experiment3TS, aes(x = MWer, y = correct, fill = MWer)) +
   stat_summary(
@@ -1712,6 +1808,14 @@ result_dataSART$subject <- as.integer(result_dataSART$subject)
 
 ###SART analysis for Exp3
 Experiment3SART <- left_join(Experiment3SART, result_dataSART, by = "subject")
+Experiment3SART$MWcatch_response[is.na(Experiment3SART$MWcatch_response)] <- 0
+Experiment3SART$MWer_final <- ifelse(Experiment3SART$MWer == "Yes" & Experiment3SART$MWcatch_response >= 51, "MW", "NMW")
+Experiment3SART <- Experiment3SART %>%
+  rename(MWer_pre = MWer,
+         MWer = MWer_final)
+
+Experiment3SART <- Experiment3SART %>% dplyr::select(-MWer_pre)
+
 
 Experiment3SARTprobeResp <- distinct(Experiment3TS, subject, .keep_all = TRUE)
 
@@ -1738,9 +1842,10 @@ Experiment3SART$miss <- ifelse(Experiment3SART$trialtype == "NoGo" & Experiment3
 Experiment3SART$CR <- ifelse(Experiment3SART$trialtype == "Go" & Experiment3SART$correct == 1, 1, 0)
 Experiment3SART$FA <- ifelse(Experiment3SART$trialtype == "Go" & Experiment3SART$correct == 0, 1, 0)
 
-
+Experiment3SART$MWer <- as.factor(Experiment3SART$MWer)
+Experiment3SART$MWer <- relevel(Experiment3SART$MWer, ref = "NMW")
 Exp3SARTrtFilt <- Experiment3SART %>% filter(correct == 1)
-Exp3SARTrtFilt <- Experiment3SART %>% filter(trialtype == "Go")
+Exp3SARTrtFilt <- Exp3SARTrtFilt %>% filter(trialtype == "Go")
 Exp3SARTfaFilt <- Experiment3SART %>% filter(trialtype == "Go")
 
 Exp3SARTaccFilt <- Experiment3SART %>% filter(trialtype == "NoGo")
@@ -1749,7 +1854,7 @@ Exp3SARTmissFilt <- Experiment3SART %>% filter(trialtype == "NoGo")
 
 Exp3FAmean <- aggregate(FA ~ subject + new_exp_column + new_cond_column, Exp3SARTfaFilt, mean)
 Exp3Hitmean <- aggregate(correct ~ subject + new_exp_column + new_cond_column, Exp3SARTaccFilt, mean)
-Exp3Missmean <- aggregate(CR ~ subject + new_exp_column + new_cond_column, Exp3SARTrtFilt, mean)
+Exp3Missmean <- aggregate(miss ~ subject + new_exp_column + new_cond_column, Exp3SARTmissFilt, mean)
 Exp3RTmean <- aggregate(latency ~ subject + new_exp_column + new_cond_column, Exp3SARTrtFilt, mean)
 
 Exp3QualCheck <- left_join(Exp3Hitmean, Exp3FAmean, by = "subject") %>%
@@ -1778,6 +1883,15 @@ frequentist_model_table(Exp3RTLMERresults, Exp3RTConfInt,
 Exp3RTlm <- lmer(latency~new_cond_column * MWer + (1 | subject), data=Exp3SARTrtFilt)
 summary(Exp3RTlm)
 
+Exp3RTConfInt <- confint(Exp3RTlm)
+Exp3RTLMERresults <- summary(Exp3RTlm)
+frequentist_model_table(Exp3RTLMERresults, Exp3RTConfInt,
+ # Replace colons in the names of interactions with times symbols
+  interaction_symbol_x = TRUE, 
+  
+  #Rename Title, for No title replace text with NULL
+  caption = "SART Latency by Mind Wanderer, Congruenct and Switch Trials")
+
 participant_avg_rt_SART <- Exp3SARTrtFilt %>%
   group_by(subject, new_cond_column, MWer) %>%
   summarize(avg_latency = mean(latency))
@@ -1787,13 +1901,13 @@ print(participant_avg_rt_SART)
 
 ACCbyMWExp3RTSART <- ggplot(participant_avg_rt_SART, aes(x = new_cond_column, y = avg_latency, fill = MWer)) + 
   geom_violin(trim = FALSE) +
-  labs(title = "Average Latency of Responses for Go Trials by Mind Wanderer and Enjoyment Condition", 
+  labs(title = "Average Latency of Responses for Go Trials by Levels of Mind Wanderer and Enjoyment Condition", 
        x = "Enjoyment Condition", 
        y = "Average Latency of Go Trials",
-       fill = "Mind Wanderer") +
+       fill = "Levels of Mind Wanderer") +
   scale_x_discrete(labels = c("Enjoy" = "Enjoy", "NotEnjoy" = "Not Enjoy")) +
-  scale_fill_manual(values = c("Yes" = "blue", "No" = "red"),
-                    labels = c("Yes" = "Mind Wanderer", "No" = "Not Mind Wanderer"))
+  scale_fill_manual(values = c("MW" = "blue", "NMW" = "red"),
+                    labels = c("MW" = "High Level of Mind Wandering", "NMW" = "Low Level of Mind Wandering"))
 
 ACCbyMWExp3RTSART + stat_summary(fun.data="mean_sdl", mult=1,
                                   geom="crossbar", width=0.2, stackdir='center',
@@ -1841,14 +1955,7 @@ ACCbyMWExp3RTSART + stat_summary(fun.data=mean_sdl, mult=1,
             hjust = 0, vjust = -0.5, size = 5, color = "black", fontface = "bold", show.legend = FALSE)
 
 
-Exp3RTConfInt <- confint(Exp3RTlm)
-Exp3RTLMERresults <- summary(Exp3RTlm)
-frequentist_model_table(Exp3RTLMERresults, Exp3RTConfInt,
- # Replace colons in the names of interactions with times symbols
-  interaction_symbol_x = TRUE, 
-  
-  #Rename Title, for No title replace text with NULL
-  caption = "SART Latency by Mind Wanderer, Congruenct and Switch Trials")
+
 
 Exp3RTlm <- lmer(latency~new_cond_column + MWer + (1 | subject), data=Exp3SARTrtFilt)
 summary(Exp3RTlm)
@@ -1896,7 +2003,7 @@ print(Exp3RTbyConditionsInt)
 # Exp3ACClm <- lm(correct ~ new_cond_column*MWer, data = Exp3SARTaccFilt)
 # summary(Exp3ACClm)
 
-Exp3ACClm <- lmer(correct~new_cond_column * MWer + (1 | subject), data=Exp3SARTaccFilt)
+Exp3ACClm <- glmer(correct~new_cond_column * MWer + (1 | subject), data=Exp3SARTaccFilt, family = binomial)
 summary(Exp3ACClm)
 
 Exp3ACCConfInt <- confint(Exp3ACClm)
