@@ -3380,6 +3380,11 @@ table(EFAanalysis$Probe, EFAanalysis$Task)
 
 EFAanalysis$MW <- dplyr::recode(EFAanalysis$MWer, 'MW' = 'MW', 'NMW' = 'NMW')
 
+participant_efa_posAff <- EFAanalysis %>%
+   group_by(Probe, MW) %>%
+   summarize(avg_m1 = mean(MR1),
+             sdm1 = sd(MR1))
+
 #report this model - relevel the MWer factor so Yes is first
 Foo <- lm(MR1~Probe+Task+MW+Probe:MW, data = EFAanalysis, contrasts = list(Probe = "contr.sum", Task = "contr.sum", MW = "contr.sum"))
 confint(Foo)
